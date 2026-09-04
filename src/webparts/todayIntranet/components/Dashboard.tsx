@@ -1,11 +1,13 @@
 import * as React from 'react';
 import { Responsive, WidthProvider, Layout, Layouts } from 'react-grid-layout';
 import { WebPartContext } from '@microsoft/sp-webpart-base';
+import { IReadonlyTheme } from '@microsoft/sp-component-base';
 import { PrimaryButton, DefaultButton } from '@fluentui/react/lib/Button';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
+import { ThemeProvider, createTheme, IPartialTheme } from '@fluentui/react/lib/Theme';
 import styles from './Dashboard.module.scss';
-import { WidgetFrame } from './WidgetFrame';
+import { WidgetFrame, INudge } from './WidgetFrame';
 import { AddWidgetPanel } from './AddWidgetPanel';
 import { IDashboardLayout, IWidgetInstance, CURRENT_LAYOUT_VERSION } from '../model/IDashboardLayout';
 import { ILayoutStore } from '../services/ILayoutStore';
@@ -25,6 +27,8 @@ export interface IDashboardProps {
   store: ILayoutStore;
   /** Layout seeded for users who have never arranged their dashboard. */
   starterLayout: IDashboardLayout;
+  /** Current SPFx section / site theme, mapped onto Fluent UI controls. */
+  theme?: IReadonlyTheme;
 }
 
 /** The canonical layout is authored on 12 columns; narrower breakpoints clamp it. */
@@ -61,8 +65,50 @@ function newInstanceId(): string {
   return `w_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 8)}`;
 }
 
+/**
+ * The grid compacts vertically, so every tile already sits at its smallest possible
+ * `y`. Moving one by a single row is therefore always undone by the next compaction.
+ * A keyboard move has to swap the tile with the neighbour it overlaps horizontally.
+ * Returns undefined when there is nothing to swap with.
+ */
+function swapVertically(
+  widgets: IWidgetInstance[],
+  target: IWidgetInstance,
+  direction: number
+): IWidgetInstance[] | undefined {
+  const overlapping = widgets.filter(
+    (w) => w.id !== target.id && w.x < target.x + target.w && target.x < w.x + w.w
+  );
+
+  if (direction < 0) {
+    const above = overlapping
+      .filter((w) => w.y + w.h <= target.y)
+      .sort((a, b) => b.y + b.h - (a.y + a.h))[0];
+    if (!above) {
+      return undefined;
+    }
+    return widgets.map((w) => {
+      if (w.id === target.id) {
+        return { ...w, y: above.y };
+      }
+      return w.id === above.id ? { ...w, y: above.y + target.h } : w;
+    });
+  }
+
+  const below = overlapping.filter((w) => w.y >= target.y + target.h).sort((a, b) => a.y - b.y)[0];
+  if (!below) {
+    return undefined;
+  }
+  return widgets.map((w) => {
+    if (w.id === target.id) {
+      return { ...w, y: below.y + below.h };
+    }
+    return w.id === below.id ? { ...w, y: target.y } : w;
+  });
+}
+
 export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
-  const { title, spContext, store, starterLayout } = props;
+  const { title, spContext, store, starterLayout, theme } = props;
 
   const [widgets, setWidgets] = React.useState<IWidgetInstance[]>([]);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
@@ -74,6 +120,10 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
   const saveTimer = React.useRef<number | undefined>(undefined);
   const isMounted = React.useRef<boolean>(true);
   const widgetsRef = React.useRef<IWidgetInstance[]>(widgets);
+  // The grid reports a breakpoint change and a layout change inside the same commit,
+  // so this has to be a ref: a state update would still be batched when the layout
+  // callback fires and the narrow layout would overwrite the authored one.
+  const breakpointRef = React.useRef<string>('lg');
 
   React.useEffect(() => {
     widgetsRef.current = widgets;
@@ -144,7 +194,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
   const handleLayoutChange = React.useCallback(
     (current: Layout[]) => {
       // Only the 12 column breakpoint is authoritative; narrower ones are derived.
-      if (breakpoint !== 'lg' || isLoading) {
+      if (breakpointRef.current !== 'lg' || isLoading) {
         return;
       }
       const previous = widgetsRef.current;
@@ -157,7 +207,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
         update(next);
       }
     },
-    [breakpoint, isLoading, update]
+    [isLoading, update]
   );
 
   const handleAdd = React.useCallback(
@@ -184,6 +234,46 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
     [widgets, update]
   );
 
+  /**
+   * Keyboard equivalent of dragging. Vertical moves swap with the neighbour above or
+   * below, because the grid compacts and would otherwise undo a single-row move.
+   */
+  const handleNudge = React.useCallback(
+    (instanceId: string, nudge: INudge) => {
+      const cols = COLS.lg;
+      const current = widgetsRef.current;
+      const target = current.filter((w) => w.id === instanceId)[0];
+      if (!target) {
+        return;
+      }
+
+      const definition = WidgetRegistry.get(target.type);
+      const minW = definition?.minSize?.w ?? 1;
+      const minH = definition?.minSize?.h ?? 2;
+
+      const w = Math.max(minW, Math.min(cols, target.w + (nudge.dw ?? 0)));
+      const h = Math.max(minH, target.h + (nudge.dh ?? 0));
+      const x = Math.max(0, Math.min(cols - w, target.x + (nudge.dx ?? 0)));
+
+      const resized: IWidgetInstance = { ...target, x, w, h };
+      let next = current.map((item) => (item.id === instanceId ? resized : item));
+
+      const dy = nudge.dy ?? 0;
+      if (dy !== 0) {
+        next = swapVertically(next, resized, dy) ?? next;
+      }
+
+      const changed = next.some((item, i) => {
+        const before = current[i];
+        return item.x !== before.x || item.y !== before.y || item.w !== before.w || item.h !== before.h;
+      });
+      if (changed) {
+        update(next);
+      }
+    },
+    [update]
+  );
+
   const handleUpdateSettings = React.useCallback(
     (instanceId: string, settings: Record<string, unknown>) =>
       update(widgets.map((w) => (w.id === instanceId ? { ...w, settings } : w))),
@@ -197,6 +287,17 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
 
   const gridLayouts = React.useMemo(() => toGridLayouts(widgets), [widgets]);
 
+  const fluentTheme = React.useMemo(() => {
+    if (!theme) {
+      return undefined;
+    }
+    return createTheme({
+      palette: theme.palette as IPartialTheme['palette'],
+      semanticColors: theme.semanticColors as IPartialTheme['semanticColors'],
+      isInverted: !!theme.isInverted
+    });
+  }, [theme]);
+
   if (isLoading) {
     return (
       <div className={styles.dashboard}>
@@ -208,7 +309,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
   }
 
   return (
-    <div className={styles.dashboard}>
+    <ThemeProvider theme={fluentTheme} applyTo="none" className={styles.dashboard}>
       <div className={styles.toolbar}>
         <h2 className={styles.heading}>{title}</h2>
         {isEditing && <DefaultButton iconProps={{ iconName: 'Add' }} text="Add a widget" onClick={() => setIsCatalogueOpen(true)} />}
@@ -223,6 +324,13 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
       {storeMessage && (
         <MessageBar messageBarType={MessageBarType.warning} isMultiline={true}>
           {storeMessage}
+        </MessageBar>
+      )}
+
+      {isEditing && breakpoint === 'lg' && (
+        <MessageBar messageBarType={MessageBarType.info}>
+          Drag a widget by its title bar, or focus a title bar with the Tab key and use the arrow keys to move it —
+          hold Shift with the arrow keys to resize.
         </MessageBar>
       )}
 
@@ -256,7 +364,11 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
           isDraggable={isEditing}
           isResizable={isEditing}
           draggableHandle=".widget-drag-handle"
-          onBreakpointChange={setBreakpoint}
+          compactType="vertical"
+          onBreakpointChange={(next) => {
+            breakpointRef.current = next;
+            setBreakpoint(next);
+          }}
           onLayoutChange={handleLayoutChange}
           measureBeforeMount={false}
           useCSSTransforms={true}
@@ -276,6 +388,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
                   widgetContext={widgetContext}
                   isEditing={isEditing}
                   onRemove={handleRemove}
+                  onNudge={handleNudge}
                 />
               </div>
             );
@@ -288,6 +401,6 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
         onDismiss={() => setIsCatalogueOpen(false)}
         onAdd={handleAdd}
       />
-    </div>
+    </ThemeProvider>
   );
 };

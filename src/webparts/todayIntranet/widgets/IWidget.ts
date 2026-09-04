@@ -35,4 +35,9 @@ export interface IWidgetDefinition {
   defaultSize: IWidgetSize;
   minSize?: IWidgetSize;
   render(context: IWidgetContext): React.ReactElement;
+  /**
+   * Optional configuration UI, shown in the tile's settings flyout while the
+   * dashboard is in edit mode. Use `context.updateSettings` to persist changes.
+   */
+  renderSettings?(context: IWidgetContext): React.ReactElement;
 }

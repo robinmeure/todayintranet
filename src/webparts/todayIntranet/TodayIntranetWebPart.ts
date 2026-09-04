@@ -20,13 +20,15 @@ export interface ITodayIntranetWebPartProps {
 const STARTER_LAYOUT: IDashboardLayout = {
   version: CURRENT_LAYOUT_VERSION,
   widgets: [
-    { id: 'starter-welcome', type: 'demo.welcome', x: 0, y: 0, w: 6, h: 4 },
-    { id: 'starter-clock', type: 'demo.clock', x: 6, y: 0, w: 3, h: 4 }
+    { id: 'starter-calendar', type: 'm365.calendar', x: 0, y: 0, w: 4, h: 6 },
+    { id: 'starter-mail', type: 'm365.mail', x: 4, y: 0, w: 4, h: 6 },
+    { id: 'starter-tasks', type: 'm365.tasks', x: 8, y: 0, w: 4, h: 6 }
   ]
 };
 
 export default class TodayIntranetWebPart extends BaseClientSideWebPart<ITodayIntranetWebPartProps> {
   private _store: ILayoutStore | undefined;
+  private _theme: IReadonlyTheme | undefined;
 
   protected onInit(): Promise<void> {
     initializeIcons(undefined, { disableWarnings: true });
@@ -46,21 +48,28 @@ export default class TodayIntranetWebPart extends BaseClientSideWebPart<ITodayIn
       title: this.properties.title || 'Today',
       spContext: this.context,
       store: this._store!,
-      starterLayout: STARTER_LAYOUT
+      starterLayout: STARTER_LAYOUT,
+      theme: this._theme
     });
 
     ReactDom.render(element, this.domElement);
   }
 
   protected onThemeChanged(currentTheme: IReadonlyTheme | undefined): void {
-    if (!currentTheme || !currentTheme.semanticColors) {
+    if (!currentTheme) {
       return;
     }
 
+    this._theme = currentTheme;
+
     const { semanticColors } = currentTheme;
-    this.domElement.style.setProperty('--bodyText', semanticColors.bodyText || null);
-    this.domElement.style.setProperty('--link', semanticColors.link || null);
-    this.domElement.style.setProperty('--linkHovered', semanticColors.linkHovered || null);
+    if (semanticColors) {
+      this.domElement.style.setProperty('--bodyText', semanticColors.bodyText || null);
+      this.domElement.style.setProperty('--link', semanticColors.link || null);
+      this.domElement.style.setProperty('--linkHovered', semanticColors.linkHovered || null);
+    }
+
+    this.render();
   }
 
   protected onDispose(): void {

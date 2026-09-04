@@ -26,19 +26,23 @@ Useful Heft actions (old gulp equivalents in brackets): `build` [build + bundle]
 test CDN), `trust-dev-cert`, `untrust-dev-cert`. `--production` replaces the old `--ship`.
 
 Deploy `sharepoint/solution/todayintranet.sppkg` to the tenant app catalog. `skipFeatureDeployment`
-is on, so the web part is available on every site once the package is approved.
+is on, so the web part is available on every site once the package is approved. Approve the Graph
+permission requests afterwards (see [Widgets](#widgets)).
 
 ## How the dashboard fits together
 
 ```
-TodayIntranetWebPart.ts          creates the layout store, renders <Dashboard>
-components/Dashboard.tsx         grid, edit mode, add/remove, debounced persistence
-components/WidgetFrame.tsx       shared tile chrome: icon, title, drag handle, remove
-components/AddWidgetPanel.tsx    widget catalogue
-widgets/IWidget.ts               the widget contract
-widgets/WidgetRegistry.tsx       every widget the catalogue offers
-model/IDashboardLayout.ts        persisted layout shape
-services/*LayoutStore.ts         persistence
+TodayIntranetWebPart.ts           creates the layout store, captures the theme, renders <Dashboard>
+components/Dashboard.tsx          grid, edit mode, add/remove, keyboard nudging, debounced persistence
+components/WidgetFrame.tsx        tile chrome: icon, title, drag handle, settings flyout, remove
+components/WidgetErrorBoundary.tsx contains a crashing widget
+components/AddWidgetPanel.tsx     widget catalogue
+widgets/IWidget.ts                the widget contract
+widgets/WidgetRegistry.tsx        every widget the catalogue offers
+widgets/WidgetMessage.tsx         shared loading / empty / error presentation
+widgets/graph/useGraphData.ts     Graph query hook with consent-aware error handling
+model/IDashboardLayout.ts         persisted layout shape
+services/*LayoutStore.ts          persistence
 ```
 
 Layout is authored on a 12 column grid (`react-grid-layout`). Narrower breakpoints are derived from
@@ -48,17 +52,41 @@ phone visit can never scramble someone's desktop layout.
 The web part sets `supportsFullBleed: true`, so place it in a **full-width section** on a
 communication-site page to get edge-to-edge rendering.
 
-## Adding a widget
+### Rearranging
+
+In edit mode a widget can be dragged by its title bar, or moved from the keyboard: Tab to a title
+bar, then arrow keys to move and Shift+arrows to resize. Because the grid compacts vertically, a
+vertical nudge swaps the tile with whatever sits above or below it rather than leaving a gap.
+
+## Widgets
+
+| Type key | Widget | Graph permission |
+| --- | --- | --- |
+| `m365.calendar` | Calendar — upcoming events, configurable days ahead | `Calendars.ReadBasic` |
+| `m365.mail` | My mail — inbox, optional unread-only | `Mail.ReadBasic` |
+| `m365.tasks` | My tasks — open Microsoft To Do items | `Tasks.Read` |
+| `demo.clock` | Clock | — |
+| `demo.welcome` | Welcome greeting (reference implementation) | — |
+
+The three Microsoft 365 widgets need tenant admin approval of the `webApiPermissionRequests` in
+`config/package-solution.json`, granted in **SharePoint admin center > Advanced > API access** after
+the package is deployed. Until that happens each widget shows a message naming the missing
+permission rather than failing silently. The `.ReadBasic` scopes are deliberate: SPFx grants
+permissions to the tenant-wide SharePoint Online Client Extensibility principal, not to this
+solution alone, so the widgets ask only for the metadata they render — never message or event
+bodies and attachments.
+
+### Adding a widget
 
 1. Write a component that takes an `IWidgetContext` (instance id, its own `settings`, the SPFx
-   `WebPartContext`, `isEditing`, and `updateSettings`).
+   `WebPartContext`, `isEditing`, and `updateSettings`). Use `useGraphData` for anything that calls
+   Microsoft 365 — it handles loading, cancellation, throttling and missing consent.
 2. Register an `IWidgetDefinition` for it in `widgets/WidgetRegistry.tsx` with a **stable** `type`
    key — that key is what lives in saved layouts, so never rename one that has shipped.
+3. Optionally implement `renderSettings` to get a gear icon and settings flyout on the tile.
 
-`demo.welcome` and `demo.clock` are placeholders that exercise both halves of the contract (persisted
-per-instance settings, and live state that survives dragging). Replace them with the real calendar,
-mail and tasks widgets; those will call Microsoft Graph via `context.msGraphClientFactory` and need
-matching `webApiPermissionRequests` entries in `config/package-solution.json`.
+Widgets are wrapped in an error boundary, so a widget that throws shows a contained message instead
+of blanking the dashboard.
 
 ## Where layouts are stored
 
