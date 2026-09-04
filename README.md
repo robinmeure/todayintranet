@@ -114,11 +114,19 @@ of blanking the dashboard.
 ## Where layouts are stored
 
 Per user, in a hidden list named **TodayIntranetLayouts** on the site hosting the page: `Title` holds
-`<web part instance id>|<user login name>` and a `LayoutJson` note column holds the layout.
+`<dashboard id>|<user login name>` and a `LayoutJson` note column holds the layout.
+
+The **Dashboard id** is a property-pane setting that defaults to `default`, so out of the box a
+person's arrangement is per site and survives the web part being removed, re-added or moved to
+another page. Give a second dashboard on the same site its own id to keep the two apart. Changing
+the id points everyone at a fresh set of saved layouts — treat it as a deliberate reset. The value is
+lower-cased and reduced to `a-z 0-9 . _ -`, max 50 characters, because it ends up in a list item
+title, an OData filter and a `localStorage` key.
 
 The list is created on first use, which needs Manage Lists rights — in practice a site owner opening
 the page provisions it. It is created hidden, with `ReadSecurity`/`WriteSecurity` set to 2 so users
-only ever see their own item.
+only ever see their own item, and `Title` is indexed: the list holds one item per user, and filtering
+an unindexed column stops working once a list passes the 5,000-item list view threshold.
 
 If the list cannot be read or written (read-only visitor, missing list, throttling), the store falls
 back to `localStorage` and the dashboard shows a warning saying the arrangement is browser-local.

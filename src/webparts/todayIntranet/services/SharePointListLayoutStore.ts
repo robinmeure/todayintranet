@@ -182,12 +182,39 @@ export class SharePointListLayoutStore implements ILayoutStore {
       throw new Error(`Could not add the '${LAYOUT_FIELD}' column (HTTP ${addField.status}).`);
     }
 
+    await this._indexTitle();
+
     // Hide the list and restrict item level access so users only ever see their own layout.
     await this._post(
       this._listUrl(),
       { Hidden: true, OnQuickLaunch: false, ReadSecurity: 2, WriteSecurity: 2, EnableAttachments: false },
       { 'X-HTTP-Method': 'MERGE', 'IF-MATCH': '*' }
     );
+  }
+
+  /**
+   * Every user gets an item, so this list passes 5000 items on a large tenant. The
+   * per-user lookup filters on Title, and filtering a non-indexed column past the
+   * list view threshold fails outright - which would degrade everyone to
+   * localStorage. Indexing here, while the list is still empty, avoids that.
+   * A failure is not fatal: small tenants never reach the threshold.
+   */
+  private async _indexTitle(): Promise<void> {
+    try {
+      const response = await this._post(
+        `${this._listUrl()}/fields/getbyinternalnameortitle('Title')`,
+        { Indexed: true },
+        { 'X-HTTP-Method': 'MERGE', 'IF-MATCH': '*' }
+      );
+      if (!response.ok) {
+        console.warn(
+          `[TodayIntranet] Could not index the Title column (HTTP ${response.status}). ` +
+            'Index it by hand if this tenant has more than 5000 dashboard users.'
+        );
+      }
+    } catch (error) {
+      console.warn('[TodayIntranet] Could not index the Title column:', error);
+    }
   }
 
   private _degrade(error: unknown): void {

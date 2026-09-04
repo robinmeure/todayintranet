@@ -153,6 +153,9 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
   }, []);
 
   React.useEffect(() => {
+    // The store is replaced when the author repoints the dashboard id, so show the
+    // spinner again rather than leaving the previous scope's widgets on screen.
+    setIsLoading(true);
     store
       .load()
       .then((stored) => {

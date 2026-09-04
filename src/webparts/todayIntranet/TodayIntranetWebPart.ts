@@ -14,6 +14,24 @@ import { SharePointListLayoutStore } from './services/SharePointListLayoutStore'
 
 export interface ITodayIntranetWebPartProps {
   title: string;
+  dashboardId: string;
+}
+
+/** Layouts are scoped to this id, so re-adding the web part keeps them. */
+const DEFAULT_DASHBOARD_ID: string = 'default';
+
+/**
+ * The id ends up in a list item title, an OData filter and a localStorage key, and
+ * `|` separates it from the login name, so it is reduced to a safe short slug.
+ */
+function toDashboardKey(value: string | undefined): string {
+  const slug = (value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .substring(0, 50)
+    .replace(/^-+|-+$/g, '');
+  return slug || DEFAULT_DASHBOARD_ID;
 }
 
 /** Shown to anyone who has not arranged their dashboard yet. */
@@ -30,18 +48,11 @@ const STARTER_LAYOUT: IDashboardLayout = {
 
 export default class TodayIntranetWebPart extends BaseClientSideWebPart<ITodayIntranetWebPartProps> {
   private _store: ILayoutStore | undefined;
+  private _storeKey: string | undefined;
   private _theme: IReadonlyTheme | undefined;
 
   protected onInit(): Promise<void> {
     initializeIcons(undefined, { disableWarnings: true });
-
-    this._store = new SharePointListLayoutStore({
-      spHttpClient: this.context.spHttpClient,
-      webAbsoluteUrl: this.context.pageContext.web.absoluteUrl,
-      userKey: this.context.pageContext.user.loginName,
-      dashboardKey: this.context.instanceId
-    });
-
     return super.onInit();
   }
 
@@ -49,12 +60,27 @@ export default class TodayIntranetWebPart extends BaseClientSideWebPart<ITodayIn
     const element: React.ReactElement<IDashboardProps> = React.createElement(Dashboard, {
       title: this.properties.title || 'Today',
       spContext: this.context,
-      store: this._store!,
+      store: this._ensureStore(),
       starterLayout: STARTER_LAYOUT,
       theme: this._theme
     });
 
     ReactDom.render(element, this.domElement);
+  }
+
+  /** Rebuilt when the author changes the dashboard id, so the new scope is loaded. */
+  private _ensureStore(): ILayoutStore {
+    const key = toDashboardKey(this.properties.dashboardId);
+    if (!this._store || this._storeKey !== key) {
+      this._storeKey = key;
+      this._store = new SharePointListLayoutStore({
+        spHttpClient: this.context.spHttpClient,
+        webAbsoluteUrl: this.context.pageContext.web.absoluteUrl,
+        userKey: this.context.pageContext.user.loginName,
+        dashboardKey: key
+      });
+    }
+    return this._store;
   }
 
   protected onThemeChanged(currentTheme: IReadonlyTheme | undefined): void {
@@ -91,6 +117,19 @@ export default class TodayIntranetWebPart extends BaseClientSideWebPart<ITodayIn
             {
               groupName: strings.BasicGroupName,
               groupFields: [PropertyPaneTextField('title', { label: strings.TitleFieldLabel })]
+            },
+            {
+              groupName: strings.StorageGroupName,
+              groupFields: [
+                PropertyPaneTextField('dashboardId', {
+                  label: strings.DashboardIdFieldLabel,
+                  description: strings.DashboardIdFieldDescription,
+                  placeholder: DEFAULT_DASHBOARD_ID,
+                  // Repointing the store on every keystroke would read the list
+                  // once per intermediate value, so wait for typing to settle.
+                  deferredValidationTime: 1500
+                })
+              ]
             }
           ]
         }

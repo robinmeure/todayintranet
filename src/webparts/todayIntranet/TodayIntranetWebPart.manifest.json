@@ -23,7 +23,8 @@
     "description": { "default": "Full-width personal intranet dashboard hosting re-arrangeable widgets" },
     "officeFabricIconFontName": "ViewDashboard",
     "properties": {
-      "title": "Today"
+      "title": "Today",
+      "dashboardId": "default"
     }
   }]
 }
