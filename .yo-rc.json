@@ -1,0 +1,23 @@
+{
+  "@microsoft/generator-sharepoint": {
+    "whichFolder": "subdir",
+    "solutionName": "todayintranet",
+    "environment": "spo",
+    "packageManager": "npm",
+    "skipFeatureDeployment": true,
+    "useGulp": false,
+    "componentType": "webpart",
+    "template": "react",
+    "componentName": "TodayIntranet",
+    "componentDescription": "Full-width personal intranet dashboard hosting re-arrangeable widgets",
+    "plusBeta": false,
+    "isCreatingSolution": true,
+    "nodeVersion": "22.22.0",
+    "sdksVersions": {},
+    "version": "1.23.2",
+    "libraryName": "todayintranet",
+    "libraryId": "dd23e629-272b-47a1-a588-1a0d961fb824",
+    "solutionShortDescription": "todayintranet description",
+    "isDomainIsolated": false
+  }
+}

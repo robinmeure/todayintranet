@@ -1,0 +1,18 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/config.2.0.schema.json",
+  "version": "2.0",
+  "bundles": {
+    "today-intranet-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/todayIntranet/TodayIntranetWebPart.js",
+          "manifest": "./src/webparts/todayIntranet/TodayIntranetWebPart.manifest.json"
+        }
+      ]
+    }
+  },
+  "externals": {},
+  "localizedResources": {
+    "TodayIntranetWebPartStrings": "lib/webparts/todayIntranet/loc/{locale}.js"
+  }
+}

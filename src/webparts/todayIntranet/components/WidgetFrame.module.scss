@@ -1,0 +1,55 @@
+@import '~@microsoft/sp-office-ui-fabric-core/dist/sass/SPFabricCore.scss';
+
+.frame {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 8px;
+  background-color: '[theme:white, default:#ffffff]';
+  border: 1px solid '[theme:neutralLight, default:#edebe9]';
+  box-shadow: 0 1.6px 3.6px rgba(0, 0, 0, 0.08), 0 0.3px 0.9px rgba(0, 0, 0, 0.06);
+}
+
+.frameEditing {
+  border-style: dashed;
+  border-color: '[theme:themePrimary, default:#0078d4]';
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid '[theme:neutralLighter, default:#f3f2f1]';
+  flex: 0 0 auto;
+}
+
+.dragHandle {
+  cursor: move;
+}
+
+.icon {
+  color: '[theme:themePrimary, default:#0078d4]';
+}
+
+.title {
+  flex: 1 1 auto;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: '[theme:neutralPrimary, default:#323130]';
+}
+
+.body {
+  flex: 1 1 auto;
+  padding: 12px;
+  overflow: auto;
+  color: '[theme:neutralPrimary, default:#323130]';
+}
+
+.missing {
+  padding: 12px;
+  color: '[theme:neutralSecondary, default:#605e5c]';
+}

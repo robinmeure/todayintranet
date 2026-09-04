@@ -1,0 +1,101 @@
+.dashboard {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 16px 24px 32px;
+  color: '[theme:neutralPrimary, default:#323130]';
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.heading {
+  flex: 1 1 auto;
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.empty {
+  border: 1px dashed '[theme:neutralTertiary, default:#a19f9d]';
+  border-radius: 8px;
+  padding: 48px 24px;
+  text-align: center;
+  color: '[theme:neutralSecondary, default:#605e5c]';
+}
+
+.loading {
+  padding: 48px 0;
+}
+
+/* react-grid-layout needs these class names verbatim, so they are declared
+   globally instead of being hashed by the CSS modules pipeline. */
+:global {
+  .react-grid-layout {
+    position: relative;
+    transition: height 200ms ease;
+  }
+
+  .react-grid-item {
+    transition: all 200ms ease;
+    transition-property: left, top, width, height;
+    box-sizing: border-box;
+  }
+
+  .react-grid-item.cssTransforms {
+    transition-property: transform, width, height;
+  }
+
+  .react-grid-item.resizing {
+    transition: none;
+    z-index: 1;
+    will-change: width, height;
+  }
+
+  .react-grid-item.react-draggable-dragging {
+    transition: none;
+    z-index: 3;
+    will-change: transform;
+  }
+
+  .react-grid-item.react-grid-placeholder {
+    background: '[theme:themePrimary, default:#0078d4]';
+    opacity: 0.2;
+    border-radius: 8px;
+    transition-duration: 100ms;
+    z-index: 2;
+    user-select: none;
+  }
+
+  .react-resizable {
+    position: relative;
+  }
+
+  .react-resizable-hide > .react-resizable-handle {
+    display: none;
+  }
+
+  .react-grid-item > .react-resizable-handle {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    bottom: 0;
+    right: 0;
+    cursor: se-resize;
+  }
+
+  .react-grid-item > .react-resizable-handle::after {
+    content: '';
+    position: absolute;
+    right: 5px;
+    bottom: 5px;
+    width: 6px;
+    height: 6px;
+    border-right: 2px solid '[theme:neutralSecondary, default:#605e5c]';
+    border-bottom: 2px solid '[theme:neutralSecondary, default:#605e5c]';
+  }
+}

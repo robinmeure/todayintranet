@@ -1,0 +1,40 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
+  "solution": {
+    "name": "todayintranet-client-side-solution",
+    "id": "dd23e629-272b-47a1-a588-1a0d961fb824",
+    "version": "1.0.0.0",
+    "includeClientSideAssets": true,
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "developer": {
+      "name": "",
+      "websiteUrl": "",
+      "privacyUrl": "",
+      "termsOfUseUrl": "",
+      "mpnId": "Undefined-1.23.2"
+    },
+    "metadata": {
+      "shortDescription": {
+        "default": "Full-width personal intranet dashboard hosting re-arrangeable widgets."
+      },
+      "longDescription": {
+        "default": "Today intranet renders a full-width dashboard of widgets. Visitors switch the dashboard into edit mode to add, move, resize and remove their own widgets; the arrangement is stored per user in a hidden list on the hosting site."
+      },
+      "screenshotPaths": [],
+      "videoUrl": "",
+      "categories": []
+    },
+    "features": [
+      {
+        "title": "Today intranet",
+        "description": "The feature that activates elements of the todayintranet solution.",
+        "id": "30f021d0-f22e-4adb-8ddc-1f8777e7a4fd",
+        "version": "1.0.0.0"
+      }
+    ]
+  },
+  "paths": {
+    "zippedPackage": "solution/todayintranet.sppkg"
+  }
+}
