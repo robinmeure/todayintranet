@@ -37,11 +37,13 @@ components/Dashboard.tsx          grid, edit mode, add/remove, keyboard nudging,
 components/WidgetFrame.tsx        tile chrome: icon, title, drag handle, settings flyout, remove
 components/WidgetErrorBoundary.tsx contains a crashing widget
 components/AddWidgetPanel.tsx     widget catalogue
+components/LayoutPresetPanel.tsx  layout picker: column presets and tile height
 widgets/IWidget.ts                the widget contract
 widgets/WidgetRegistry.tsx        every widget the catalogue offers
 widgets/WidgetMessage.tsx         shared loading / empty / error presentation
 widgets/graph/useGraphData.ts     Graph query hook with consent-aware error handling
 model/IDashboardLayout.ts         persisted layout shape
+model/LayoutPresets.ts            layout presets and the code that pours widgets into them
 services/*LayoutStore.ts          persistence
 ```
 
@@ -57,6 +59,27 @@ communication-site page to get edge-to-edge rendering.
 In edit mode a widget can be dragged by its title bar, or moved from the keyboard: Tab to a title
 bar, then arrow keys to move and Shift+arrows to resize. Because the grid compacts vertically, a
 vertical nudge swaps the tile with whatever sits above or below it rather than leaving a gap.
+
+### Layouts
+
+**Choose a layout** in edit mode opens a picker with two choices that together define the grid:
+
+| Columns | Tile height |
+| --- | --- |
+| Single column, Two columns, Three columns, Four columns | Short (4 rows) |
+| Main and sidebar, Sidebar and main | Medium (6 rows) |
+| Banner and two columns, Banner and three columns | Tall (9 rows) |
+
+Applying a layout pours the widgets already on the dashboard into its slots, in their current order —
+it never adds or removes anything. The chosen preset stays in force: adding or removing a widget
+reflows into the same slots. Dragging or nudging a tile by hand switches the layout to **Custom**,
+shown in the edit toolbar, and nothing reflows again until a preset is applied.
+
+Presets are declared in `model/LayoutPresets.ts` as the column spans of one repeating band, so a new
+one is a single entry in `LAYOUT_PRESETS`. Two rules keep a preset stable against the grid's vertical
+compaction, which would otherwise pull tiles out of the arrangement the user picked: every tile in a
+band gets the band's height, and a band cut short by an oversized widget stretches its last tile to
+close the gap. Preset and row-size ids are persisted, so never rename one that has shipped.
 
 ## Widgets
 

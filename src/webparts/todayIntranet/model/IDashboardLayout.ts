@@ -22,9 +22,17 @@ export interface IDashboardLayout {
   /** Schema version, so stored layouts can be migrated later. */
   version: number;
   widgets: IWidgetInstance[];
+  /**
+   * Layout preset the widgets were last poured into, or undefined once the user
+   * has moved something by hand ("Custom").
+   */
+  presetId?: string;
+  /** Tile height chosen with the preset. See ROW_SIZES in LayoutPresets. */
+  rowSizeId?: string;
 }
 
-export const CURRENT_LAYOUT_VERSION: number = 1;
+/** v2 added the optional presetId / rowSizeId fields; v1 layouts load unchanged. */
+export const CURRENT_LAYOUT_VERSION: number = 2;
 
 export function emptyLayout(): IDashboardLayout {
   return { version: CURRENT_LAYOUT_VERSION, widgets: [] };
@@ -33,6 +41,8 @@ export function emptyLayout(): IDashboardLayout {
 export function cloneLayout(layout: IDashboardLayout): IDashboardLayout {
   return {
     version: layout.version,
+    presetId: layout.presetId,
+    rowSizeId: layout.rowSizeId,
     widgets: layout.widgets.map((w) => ({
       ...w,
       settings: w.settings ? { ...w.settings } : undefined

@@ -19,6 +19,8 @@ export interface ITodayIntranetWebPartProps {
 /** Shown to anyone who has not arranged their dashboard yet. */
 const STARTER_LAYOUT: IDashboardLayout = {
   version: CURRENT_LAYOUT_VERSION,
+  presetId: 'three',
+  rowSizeId: 'medium',
   widgets: [
     { id: 'starter-calendar', type: 'm365.calendar', x: 0, y: 0, w: 4, h: 6 },
     { id: 'starter-mail', type: 'm365.mail', x: 4, y: 0, w: 4, h: 6 },

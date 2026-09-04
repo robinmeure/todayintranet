@@ -9,7 +9,15 @@ import { ThemeProvider, createTheme, IPartialTheme } from '@fluentui/react/lib/T
 import styles from './Dashboard.module.scss';
 import { WidgetFrame, INudge } from './WidgetFrame';
 import { AddWidgetPanel } from './AddWidgetPanel';
+import { LayoutPresetPanel } from './LayoutPresetPanel';
 import { IDashboardLayout, IWidgetInstance, CURRENT_LAYOUT_VERSION } from '../model/IDashboardLayout';
+import {
+  GRID_COLUMNS,
+  applyPreset,
+  getPreset,
+  getRowSize,
+  DEFAULT_ROW_SIZE_ID
+} from '../model/LayoutPresets';
 import { ILayoutStore } from '../services/ILayoutStore';
 import { IWidgetContext, IWidgetDefinition } from '../widgets/IWidget';
 import { WidgetRegistry } from '../widgets/WidgetRegistry';
@@ -17,7 +25,7 @@ import { WidgetRegistry } from '../widgets/WidgetRegistry';
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const BREAKPOINTS: Record<string, number> = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 };
-const COLS: Record<string, number> = { lg: 12, md: 8, sm: 6, xs: 4, xxs: 2 };
+const COLS: Record<string, number> = { lg: GRID_COLUMNS, md: 8, sm: 6, xs: 4, xxs: 2 };
 const ROW_HEIGHT: number = 56;
 const SAVE_DEBOUNCE_MS: number = 800;
 
@@ -114,12 +122,17 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [isEditing, setIsEditing] = React.useState<boolean>(false);
   const [isCatalogueOpen, setIsCatalogueOpen] = React.useState<boolean>(false);
+  const [isLayoutPanelOpen, setIsLayoutPanelOpen] = React.useState<boolean>(false);
   const [breakpoint, setBreakpoint] = React.useState<string>('lg');
+  const [presetId, setPresetId] = React.useState<string | undefined>(undefined);
+  const [rowSizeId, setRowSizeId] = React.useState<string>(DEFAULT_ROW_SIZE_ID);
   const [storeMessage, setStoreMessage] = React.useState<string | undefined>(undefined);
 
   const saveTimer = React.useRef<number | undefined>(undefined);
   const isMounted = React.useRef<boolean>(true);
   const widgetsRef = React.useRef<IWidgetInstance[]>(widgets);
+  const presetRef = React.useRef<string | undefined>(undefined);
+  const rowSizeRef = React.useRef<string>(DEFAULT_ROW_SIZE_ID);
   // The grid reports a breakpoint change and a layout change inside the same commit,
   // so this has to be a ref: a state update would still be batched when the layout
   // callback fires and the narrow layout would overwrite the authored one.
@@ -146,7 +159,13 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
         if (!isMounted.current) {
           return;
         }
-        setWidgets(stored ? stored.widgets : starterLayout.widgets);
+        const layout = stored ?? starterLayout;
+        widgetsRef.current = layout.widgets;
+        presetRef.current = getPreset(layout.presetId)?.id;
+        rowSizeRef.current = getRowSize(layout.rowSizeId).id;
+        setWidgets(layout.widgets);
+        setPresetId(presetRef.current);
+        setRowSizeId(rowSizeRef.current);
         setStoreMessage(store.getStatus().message);
         setIsLoading(false);
       })
@@ -161,12 +180,17 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
   }, [store]);
 
   const persist = React.useCallback(
-    (next: IWidgetInstance[]) => {
+    (next: IWidgetInstance[], preset: string | undefined, rowSize: string) => {
       if (saveTimer.current !== undefined) {
         window.clearTimeout(saveTimer.current);
       }
       saveTimer.current = window.setTimeout(() => {
-        const layout: IDashboardLayout = { version: CURRENT_LAYOUT_VERSION, widgets: next };
+        const layout: IDashboardLayout = {
+          version: CURRENT_LAYOUT_VERSION,
+          widgets: next,
+          presetId: preset,
+          rowSizeId: rowSize
+        };
         store
           .save(layout)
           .then(() => {
@@ -182,14 +206,38 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
     [store]
   );
 
-  const update = React.useCallback(
-    (next: IWidgetInstance[]) => {
+  /**
+   * Single write path. `preset` records which layout preset the widgets currently
+   * match; passing undefined marks the arrangement as custom.
+   */
+  const commit = React.useCallback(
+    (next: IWidgetInstance[], preset: string | undefined, rowSize?: string) => {
       widgetsRef.current = next;
+      presetRef.current = preset;
+      if (rowSize) {
+        rowSizeRef.current = rowSize;
+        setRowSizeId(rowSize);
+      }
       setWidgets(next);
-      persist(next);
+      setPresetId(preset);
+      persist(next, preset, rowSizeRef.current);
     },
     [persist]
   );
+
+  /** Geometry changed but the preset it came from still holds. */
+  const update = React.useCallback(
+    (next: IWidgetInstance[]) => commit(next, presetRef.current),
+    [commit]
+  );
+
+  /** The user moved something by hand, so the layout no longer matches a preset. */
+  const markCustom = React.useCallback(() => {
+    if (presetRef.current !== undefined) {
+      presetRef.current = undefined;
+      setPresetId(undefined);
+    }
+  }, []);
 
   const handleLayoutChange = React.useCallback(
     (current: Layout[]) => {
@@ -212,26 +260,43 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
 
   const handleAdd = React.useCallback(
     (definition: IWidgetDefinition) => {
-      const maxY = widgets.reduce((acc, w) => Math.max(acc, w.y + w.h), 0);
-      update([
-        ...widgets,
-        {
-          id: newInstanceId(),
-          type: definition.type,
-          x: 0,
-          y: maxY,
-          w: definition.defaultSize.w,
-          h: definition.defaultSize.h
-        }
-      ]);
+      const added: IWidgetInstance = {
+        id: newInstanceId(),
+        type: definition.type,
+        x: 0,
+        y: widgets.reduce((acc, w) => Math.max(acc, w.y + w.h), 0),
+        w: definition.defaultSize.w,
+        h: definition.defaultSize.h
+      };
+      const next = [...widgets, added];
+      const preset = getPreset(presetRef.current);
+      // A preset stays in force, so a new widget drops into the next free slot.
+      update(preset ? applyPreset(next, preset, getRowSize(rowSizeRef.current)) : next);
       setIsCatalogueOpen(false);
     },
     [widgets, update]
   );
 
   const handleRemove = React.useCallback(
-    (instanceId: string) => update(widgets.filter((w) => w.id !== instanceId)),
+    (instanceId: string) => {
+      const next = widgets.filter((w) => w.id !== instanceId);
+      const preset = getPreset(presetRef.current);
+      update(preset ? applyPreset(next, preset, getRowSize(rowSizeRef.current)) : next);
+    },
     [widgets, update]
+  );
+
+  const handleApplyPreset = React.useCallback(
+    (nextPresetId: string, nextRowSizeId: string) => {
+      const preset = getPreset(nextPresetId);
+      if (!preset) {
+        return;
+      }
+      const rowSize = getRowSize(nextRowSizeId);
+      commit(applyPreset(widgetsRef.current, preset, rowSize), preset.id, rowSize.id);
+      setIsLayoutPanelOpen(false);
+    },
+    [commit]
   );
 
   /**
@@ -268,10 +333,10 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
         return item.x !== before.x || item.y !== before.y || item.w !== before.w || item.h !== before.h;
       });
       if (changed) {
-        update(next);
+        commit(next, undefined);
       }
     },
-    [update]
+    [commit]
   );
 
   const handleUpdateSettings = React.useCallback(
@@ -280,10 +345,31 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
     [widgets, update]
   );
 
-  const handleReset = React.useCallback(
-    () => update(starterLayout.widgets.map((w) => ({ ...w }))),
-    [starterLayout, update]
+  const handleReset = React.useCallback(() => {
+    const next = starterLayout.widgets.map((w) => ({ ...w }));
+    commit(next, getPreset(starterLayout.presetId)?.id, getRowSize(starterLayout.rowSizeId).id);
+  }, [starterLayout, commit]);
+
+  /**
+   * A finished drag or resize is the moment the arrangement stops matching a preset.
+   * Doing it here rather than in onLayoutChange means the compaction that follows
+   * applying a preset does not immediately mark the layout custom.
+   */
+  const handleGestureStop = React.useCallback(
+    (_layout: Layout[], oldItem: Layout, newItem: Layout) => {
+      if (
+        oldItem.x !== newItem.x ||
+        oldItem.y !== newItem.y ||
+        oldItem.w !== newItem.w ||
+        oldItem.h !== newItem.h
+      ) {
+        markCustom();
+      }
+    },
+    [markCustom]
   );
+
+  const activePreset = getPreset(presetId);
 
   const gridLayouts = React.useMemo(() => toGridLayouts(widgets), [widgets]);
 
@@ -312,7 +398,19 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
     <ThemeProvider theme={fluentTheme} applyTo="none" className={styles.dashboard}>
       <div className={styles.toolbar}>
         <h2 className={styles.heading}>{title}</h2>
+        {isEditing && (
+          <span className={styles.layoutBadge}>
+            Layout: {activePreset ? activePreset.name : 'Custom'}
+          </span>
+        )}
         {isEditing && <DefaultButton iconProps={{ iconName: 'Add' }} text="Add a widget" onClick={() => setIsCatalogueOpen(true)} />}
+        {isEditing && (
+          <DefaultButton
+            iconProps={{ iconName: 'GridViewMedium' }}
+            text="Choose a layout"
+            onClick={() => setIsLayoutPanelOpen(true)}
+          />
+        )}
         {isEditing && <DefaultButton iconProps={{ iconName: 'Refresh' }} text="Reset" onClick={handleReset} />}
         {isEditing ? (
           <PrimaryButton iconProps={{ iconName: 'CheckMark' }} text="Done" onClick={() => setIsEditing(false)} />
@@ -370,6 +468,8 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
             setBreakpoint(next);
           }}
           onLayoutChange={handleLayoutChange}
+          onDragStop={handleGestureStop}
+          onResizeStop={handleGestureStop}
           measureBeforeMount={false}
           useCSSTransforms={true}
         >
@@ -400,6 +500,15 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
         isOpen={isCatalogueOpen}
         onDismiss={() => setIsCatalogueOpen(false)}
         onAdd={handleAdd}
+      />
+
+      <LayoutPresetPanel
+        isOpen={isLayoutPanelOpen}
+        presetId={presetId}
+        rowSizeId={rowSizeId}
+        widgetCount={widgets.length}
+        onDismiss={() => setIsLayoutPanelOpen(false)}
+        onApply={handleApplyPreset}
       />
     </ThemeProvider>
   );

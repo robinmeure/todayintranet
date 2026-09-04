@@ -1,0 +1,80 @@
+.intro {
+  margin: 12px 0 16px;
+  color: '[theme:neutralSecondary, default:#605e5c]';
+  font-size: 12px;
+}
+
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 16px 0 8px;
+}
+
+.card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px;
+  border: 1px solid '[theme:neutralLight, default:#edebe9]';
+  border-radius: 6px;
+  background: '[theme:white, default:#ffffff]';
+  color: '[theme:neutralPrimary, default:#323130]';
+  cursor: pointer;
+  font-family: inherit;
+
+  &:hover {
+    border-color: '[theme:neutralTertiary, default:#a19f9d]';
+  }
+
+  &:focus-visible {
+    outline: 2px solid '[theme:themePrimary, default:#0078d4]';
+    outline-offset: 2px;
+  }
+}
+
+.cardSelected {
+  border-color: '[theme:themePrimary, default:#0078d4]';
+  box-shadow: inset 0 0 0 1px '[theme:themePrimary, default:#0078d4]';
+}
+
+.cardTitle {
+  font-weight: 600;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.cardDescription {
+  color: '[theme:neutralSecondary, default:#605e5c]';
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px;
+  border-radius: 4px;
+  background: '[theme:neutralLighterAlt, default:#faf9f8]';
+}
+
+.previewRow {
+  display: flex;
+  gap: 3px;
+  min-height: 8px;
+}
+
+.previewTile {
+  background: '[theme:themePrimary, default:#0078d4]';
+  opacity: 0.35;
+  border-radius: 2px;
+  box-sizing: border-box;
+  border: 1.5px solid transparent;
+  background-clip: padding-box;
+}
+
+.footer {
+  display: flex;
+  gap: 8px;
+}
