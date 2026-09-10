@@ -129,6 +129,8 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
   const [storeMessage, setStoreMessage] = React.useState<string | undefined>(undefined);
 
   const saveTimer = React.useRef<number | undefined>(undefined);
+  /** Layout waiting out the debounce, kept so it can still be written if this goes away. */
+  const pendingSave = React.useRef<IDashboardLayout | undefined>(undefined);
   const isMounted = React.useRef<boolean>(true);
   const widgetsRef = React.useRef<IWidgetInstance[]>(widgets);
   const presetRef = React.useRef<string | undefined>(undefined);
@@ -146,9 +148,6 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
     isMounted.current = true;
     return () => {
       isMounted.current = false;
-      if (saveTimer.current !== undefined) {
-        window.clearTimeout(saveTimer.current);
-      }
     };
   }, []);
 
@@ -182,31 +181,52 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
     // The store is created once per web part instance.
   }, [store]);
 
+  /** Writes whatever the debounce is holding. Does nothing when nothing is pending. */
+  const flushSave = React.useCallback(() => {
+    const layout = pendingSave.current;
+    if (layout === undefined) {
+      return;
+    }
+    pendingSave.current = undefined;
+    store
+      .save(layout)
+      .then(() => {
+        if (isMounted.current) {
+          setStoreMessage(store.getStatus().message);
+        }
+      })
+      .catch(() => {
+        /* the store already degraded to local storage */
+      });
+  }, [store]);
+
   const persist = React.useCallback(
     (next: IWidgetInstance[], preset: string | undefined, rowSize: string) => {
+      pendingSave.current = {
+        version: CURRENT_LAYOUT_VERSION,
+        widgets: next,
+        presetId: preset,
+        rowSizeId: rowSize
+      };
       if (saveTimer.current !== undefined) {
         window.clearTimeout(saveTimer.current);
       }
-      saveTimer.current = window.setTimeout(() => {
-        const layout: IDashboardLayout = {
-          version: CURRENT_LAYOUT_VERSION,
-          widgets: next,
-          presetId: preset,
-          rowSizeId: rowSize
-        };
-        store
-          .save(layout)
-          .then(() => {
-            if (isMounted.current) {
-              setStoreMessage(store.getStatus().message);
-            }
-          })
-          .catch(() => {
-            /* the store already degraded to local storage */
-          });
-      }, SAVE_DEBOUNCE_MS);
+      saveTimer.current = window.setTimeout(flushSave, SAVE_DEBOUNCE_MS);
     },
-    [store]
+    [flushSave]
+  );
+
+  // A rearrangement made inside the debounce window would otherwise be dropped when
+  // the dashboard unmounts, or when the author repoints it at another dashboard id.
+  React.useEffect(
+    () => () => {
+      if (saveTimer.current !== undefined) {
+        window.clearTimeout(saveTimer.current);
+        saveTimer.current = undefined;
+      }
+      flushSave();
+    },
+    [flushSave]
   );
 
   /**

@@ -97,7 +97,12 @@ export default class TodayIntranetWebPart extends BaseClientSideWebPart<ITodayIn
       this.domElement.style.setProperty('--linkHovered', semanticColors.linkHovered || null);
     }
 
-    this.render();
+    // SPFx also raises this during initialization, before `properties` is populated,
+    // where rendering would throw. Only a later theme switch has to be pushed into
+    // the React tree; the first render is driven by SPFx itself.
+    if (this.renderedOnce) {
+      this.render();
+    }
   }
 
   protected onDispose(): void {
