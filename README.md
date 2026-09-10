@@ -6,6 +6,9 @@ move, resize and remove widgets. Each person's arrangement is saved for them per
 
 Built on SPFx **1.23.2** with the Heft toolchain (gulp is no longer used), React 17 and Fluent UI v8.
 
+**See it in action:** [`docs/intranettoday_medium.mp4`](docs/intranettoday_medium.mp4) is a screen
+recording of the current build. GitHub plays it inline when you open the file.
+
 ## Getting started
 
 ```bash
