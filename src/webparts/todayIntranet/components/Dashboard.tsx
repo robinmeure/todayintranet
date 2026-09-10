@@ -19,7 +19,7 @@ import {
   DEFAULT_ROW_SIZE_ID
 } from '../model/LayoutPresets';
 import { ILayoutStore } from '../services/ILayoutStore';
-import { IWidgetContext, IWidgetDefinition } from '../widgets/IWidget';
+import { IWidgetHostContext, IWidgetDefinition } from '../widgets/IWidget';
 import { WidgetRegistry } from '../widgets/WidgetRegistry';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -497,7 +497,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
           useCSSTransforms={true}
         >
           {widgets.map((widget) => {
-            const widgetContext: IWidgetContext = {
+            const widgetContext: IWidgetHostContext = {
               instanceId: widget.id,
               settings: widget.settings ?? {},
               spContext,
@@ -521,6 +521,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
 
       <AddWidgetPanel
         isOpen={isCatalogueOpen}
+        existingTypes={widgets.map((widget) => widget.type)}
         onDismiss={() => setIsCatalogueOpen(false)}
         onAdd={handleAdd}
       />

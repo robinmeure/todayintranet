@@ -1,33 +1,69 @@
 import * as React from 'react';
 import { TodoTask, TodoTaskList } from '@microsoft/microsoft-graph-types';
-import { Icon } from '@fluentui/react/lib/Icon';
-import { IWidgetContext } from '../IWidget';
+import { IWidgetContext, IWidgetLink } from '../IWidget';
 import { useGraphData } from './useGraphData';
-import { WidgetLoading, WidgetEmpty, WidgetError } from '../WidgetMessage';
-import { NumberSetting, ToggleSetting, SettingsSurface, numberSetting, booleanSetting } from './settings';
-import styles from '../WidgetMessage.module.scss';
+import {
+  IWidgetListItem,
+  NumberSetting,
+  SettingsSurface,
+  ToggleSetting,
+  WidgetItems,
+  WidgetItemsView,
+  WidgetView,
+  booleanSetting,
+  numberSetting,
+  viewSetting
+} from '../content';
 
 const SCOPE: string = 'Tasks.Read';
 const DEFAULT_MAX_ITEMS: number = 6;
+const TODO_URL: string = 'https://to-do.office.com/tasks/';
 
-function formatDue(task: TodoTask, locale: string | undefined): string | undefined {
-  if (!task.dueDateTime?.dateTime) {
-    return undefined;
+export const TODO_LINK: IWidgetLink = { text: 'Open To Do', href: TODO_URL };
+export const TASKS_DEFAULT_VIEW: WidgetItemsView = 'compact';
+
+function dueDate(task: TodoTask): Date | undefined {
+  return task.dueDateTime?.dateTime ? new Date(task.dueDateTime.dateTime) : undefined;
+}
+
+function formatDue(due: Date, today: Date, locale: string | undefined): string {
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  if (due.toDateString() === today.toDateString()) {
+    return 'Due today';
   }
-  const due = new Date(task.dueDateTime.dateTime);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const label = due.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
-  return due < today ? `Overdue · ${label}` : `Due ${label}`;
+  if (due.toDateString() === tomorrow.toDateString()) {
+    return 'Due tomorrow';
+  }
+  return `Due ${due.toLocaleDateString(locale, { day: 'numeric', month: 'short' })}`;
+}
+
+/** One task, described in the shared list vocabulary. */
+function toItem(task: TodoTask, index: number, today: Date, locale: string | undefined): IWidgetListItem {
+  const due = dueDate(task);
+  const isOverdue = !!due && due < today;
+  const isImportant = task.importance === 'high';
+
+  return {
+    key: task.id ?? String(index),
+    title: task.title || '(Untitled task)',
+    meta: [due ? formatDue(due, today, locale) : undefined],
+    iconName: isImportant ? 'Important' : 'CircleRing',
+    tone: isOverdue ? 'danger' : isImportant ? 'warning' : 'neutral',
+    isEmphasized: isOverdue || isImportant,
+    badge: isOverdue ? { text: 'Overdue', tone: 'danger' } : undefined
+  };
 }
 
 export const TasksWidget: React.FunctionComponent<{ context: IWidgetContext }> = ({ context }) => {
   const maxItems = numberSetting(context, 'maxItems', DEFAULT_MAX_ITEMS);
   const dueOnly = booleanSetting(context, 'dueOnly', false);
+  const view = viewSetting(context, TASKS_DEFAULT_VIEW);
   const locale = context.spContext.pageContext.cultureInfo.currentUICultureName || undefined;
 
-  const result = useGraphData<TodoTask[]>(
-    context.spContext,
+  const state = useGraphData<TodoTask[]>(
+    context,
     SCOPE,
     async (client) => {
       const lists = await client
@@ -68,40 +104,32 @@ export const TasksWidget: React.FunctionComponent<{ context: IWidgetContext }> =
     [maxItems, dueOnly]
   );
 
-  if (result.status === 'loading') {
-    return <WidgetLoading label="Loading your tasks…" />;
-  }
-  if (result.status === 'error' && result.error) {
-    return <WidgetError error={result.error} onRetry={result.reload} />;
-  }
-  if (!result.data || result.data.length === 0) {
-    return <WidgetEmpty iconName="CheckboxComposite" text="Nothing on your task list." />;
-  }
-
   return (
-    <ul className={styles.list}>
-      {result.data.map((task) => {
-        const due = formatDue(task, locale);
+    <WidgetView
+      state={state}
+      loading={{ label: 'Loading your tasks…', rows: Math.min(maxItems, 4) }}
+      empty={{
+        iconName: 'CheckboxComposite',
+        text: dueOnly ? 'Nothing with a due date. Enjoy it.' : 'Nothing on your task list.'
+      }}
+    >
+      {(tasks) => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
         return (
-          <li key={task.id} className={styles.item}>
-            <Icon
-              iconName={task.importance === 'high' ? 'Important' : 'CircleRing'}
-              className={styles.itemIcon}
-              aria-hidden="true"
-            />
-            <span className={styles.itemText}>
-              <span className={styles.itemTitle}>{task.title || '(Untitled task)'}</span>
-              {due && <span className={styles.itemMeta}>{due}</span>}
-            </span>
-          </li>
+          <WidgetItems
+            view={view}
+            ariaLabel="Open tasks"
+            items={tasks.map((task, index) => toItem(task, index, today, locale))}
+          />
         );
-      })}
-    </ul>
+      }}
+    </WidgetView>
   );
 };
 
 export const TasksWidgetSettings: React.FunctionComponent<{ context: IWidgetContext }> = ({ context }) => (
-  <SettingsSurface>
+  <SettingsSurface description="Only this tile changes. Everyone keeps their own settings.">
     <NumberSetting
       context={context}
       settingKey="maxItems"

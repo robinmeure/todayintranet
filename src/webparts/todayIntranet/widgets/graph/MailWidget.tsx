@@ -1,14 +1,26 @@
 import * as React from 'react';
 import { Message } from '@microsoft/microsoft-graph-types';
-import { Icon } from '@fluentui/react/lib/Icon';
-import { IWidgetContext } from '../IWidget';
+import { IWidgetContext, IWidgetLink } from '../IWidget';
 import { useGraphData } from './useGraphData';
-import { WidgetLoading, WidgetEmpty, WidgetError } from '../WidgetMessage';
-import { NumberSetting, ToggleSetting, SettingsSurface, numberSetting, booleanSetting } from './settings';
-import styles from '../WidgetMessage.module.scss';
+import {
+  IWidgetListItem,
+  NumberSetting,
+  SettingsSurface,
+  ToggleSetting,
+  WidgetItems,
+  WidgetItemsView,
+  WidgetView,
+  booleanSetting,
+  numberSetting,
+  viewSetting
+} from '../content';
 
 const SCOPE: string = 'Mail.ReadBasic';
 const DEFAULT_MAX_ITEMS: number = 6;
+const MAIL_URL: string = 'https://outlook.office.com/mail/';
+
+export const MAIL_LINK: IWidgetLink = { text: 'Open Outlook', href: MAIL_URL };
+export const MAIL_DEFAULT_VIEW: WidgetItemsView = 'compact';
 
 function formatReceived(received: string | undefined, locale: string | undefined): string {
   if (!received) {
@@ -21,13 +33,33 @@ function formatReceived(received: string | undefined, locale: string | undefined
     : date.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
 }
 
+/** One message, described in the shared list vocabulary. */
+function toItem(message: Message, index: number, locale: string | undefined): IWidgetListItem {
+  const isUnread = !message.isRead;
+  return {
+    key: message.id ?? String(index),
+    title: message.subject || '(No subject)',
+    meta: [
+      message.from?.emailAddress?.name ?? 'Unknown sender',
+      formatReceived(message.receivedDateTime ?? undefined, locale)
+    ],
+    // The accent bar carries "unread" instead of a second icon: it keeps every row
+    // aligned, leaves the full width for the subject, and survives the view switch.
+    hasAccentBar: true,
+    tone: isUnread ? 'accent' : 'neutral',
+    isEmphasized: isUnread,
+    href: message.webLink ?? undefined
+  };
+}
+
 export const MailWidget: React.FunctionComponent<{ context: IWidgetContext }> = ({ context }) => {
   const maxItems = numberSetting(context, 'maxItems', DEFAULT_MAX_ITEMS);
   const unreadOnly = booleanSetting(context, 'unreadOnly', false);
+  const view = viewSetting(context, MAIL_DEFAULT_VIEW);
   const locale = context.spContext.pageContext.cultureInfo.currentUICultureName || undefined;
 
-  const result = useGraphData<Message[]>(
-    context.spContext,
+  const state = useGraphData<Message[]>(
+    context,
     SCOPE,
     async (client) => {
       let request = client
@@ -47,44 +79,28 @@ export const MailWidget: React.FunctionComponent<{ context: IWidgetContext }> = 
     [maxItems, unreadOnly]
   );
 
-  if (result.status === 'loading') {
-    return <WidgetLoading label="Loading your inbox…" />;
-  }
-  if (result.status === 'error' && result.error) {
-    return <WidgetError error={result.error} onRetry={result.reload} />;
-  }
-  if (!result.data || result.data.length === 0) {
-    return <WidgetEmpty iconName="Mail" text={unreadOnly ? 'No unread mail. Nicely done.' : 'Your inbox is empty.'} />;
-  }
-
   return (
-    <ul className={styles.list}>
-      {result.data.map((message) => (
-        <li key={message.id}>
-          <a className={styles.item} href={message.webLink ?? '#'} target="_blank" rel="noreferrer">
-            <Icon
-              iconName={message.isRead ? 'Mail' : 'MailFill'}
-              className={styles.itemIcon}
-              aria-label={message.isRead ? 'Read' : 'Unread'}
-            />
-            <span className={styles.itemText}>
-              <span className={`${styles.itemTitle} ${message.isRead ? '' : styles.itemTitleUnread}`}>
-                {message.subject || '(No subject)'}
-              </span>
-              <span className={styles.itemMeta}>
-                {message.from?.emailAddress?.name ?? 'Unknown sender'} ·{' '}
-                {formatReceived(message.receivedDateTime ?? undefined, locale)}
-              </span>
-            </span>
-          </a>
-        </li>
-      ))}
-    </ul>
+    <WidgetView
+      state={state}
+      loading={{ label: 'Loading your inbox…', rows: Math.min(maxItems, 4) }}
+      empty={{
+        iconName: 'Mail',
+        text: unreadOnly ? 'No unread mail. Nicely done.' : 'Your inbox is empty.'
+      }}
+    >
+      {(messages) => (
+        <WidgetItems
+          view={view}
+          ariaLabel={unreadOnly ? 'Unread messages' : 'Recent messages'}
+          items={messages.map((message, index) => toItem(message, index, locale))}
+        />
+      )}
+    </WidgetView>
   );
 };
 
 export const MailWidgetSettings: React.FunctionComponent<{ context: IWidgetContext }> = ({ context }) => (
-  <SettingsSurface>
+  <SettingsSurface description="Only this tile changes. Everyone keeps their own settings.">
     <NumberSetting
       context={context}
       settingKey="maxItems"

@@ -1,0 +1,567 @@
+@import '~@microsoft/sp-office-ui-fabric-core/dist/sass/SPFabricCore.scss';
+
+/* Presentation for every widget. Widgets describe what they want to show with the
+   shapes in IWidgetContent.ts; nothing below is specific to a single widget. */
+
+/* ---------------------------------------------------------------- tones ---- */
+
+.toneNeutral {
+  color: '[theme:neutralSecondary, default:#605e5c]';
+}
+
+.toneAccent {
+  color: '[theme:themePrimary, default:#0078d4]';
+}
+
+.toneSuccess {
+  color: '[theme:green, default:#107c10]';
+}
+
+.toneWarning {
+  color: '[theme:yellowDark, default:#d29200]';
+}
+
+.toneDanger {
+  color: '[theme:redDark, default:#a4262c]';
+}
+
+/* --------------------------------------------------------------- states ---- */
+
+.centered {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 80px;
+  padding: 8px;
+  text-align: center;
+}
+
+.emptyIcon {
+  font-size: 28px;
+  color: '[theme:neutralTertiary, default:#a19f9d]';
+}
+
+.emptyText {
+  color: '[theme:neutralSecondary, default:#605e5c]';
+  max-width: 34ch;
+}
+
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-sizing: border-box;
+  padding: 4px 2px;
+}
+
+.skeletonRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.skeletonBlock {
+  border-radius: 4px;
+  background: '[theme:neutralLighter, default:#f3f2f1]';
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.65) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-repeat: no-repeat;
+  background-size: 160px 100%;
+  animation: widgetShimmer 1.6s ease-in-out infinite;
+}
+
+.skeletonIcon {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  border-radius: 50%;
+}
+
+.skeletonLines {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.skeletonLine {
+  height: 10px;
+}
+
+.skeletonLineShort {
+  width: 55%;
+  height: 8px;
+}
+
+@keyframes widgetShimmer {
+  from {
+    background-position: -160px 0;
+  }
+  to {
+    background-position: calc(100% + 160px) 0;
+  }
+}
+
+@media screen and (prefers-reduced-motion: reduce) {
+  .skeletonBlock {
+    animation: none;
+  }
+}
+
+/* Content kept on screen while it is being re-read. */
+.refreshing {
+  position: relative;
+}
+
+.refreshingBar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  height: 2px;
+  overflow: hidden;
+  border-radius: 1px;
+  background: '[theme:neutralLighter, default:#f3f2f1]';
+}
+
+.refreshingBar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  border-radius: 1px;
+  background: '[theme:themePrimary, default:#0078d4]';
+  animation: widgetProgress 1.1s ease-in-out infinite;
+}
+
+@keyframes widgetProgress {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+@media screen and (prefers-reduced-motion: reduce) {
+  .refreshingBar::after {
+    animation: none;
+    width: 100%;
+    opacity: 0.4;
+  }
+}
+
+/* ----------------------------------------------------------------- list ---- */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 6px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  color: inherit;
+}
+
+.itemCompact {
+  gap: 8px;
+  padding: 5px 6px;
+}
+
+.itemInteractive {
+  cursor: pointer;
+}
+
+.itemInteractive:hover {
+  background-color: '[theme:neutralLighter, default:#f3f2f1]';
+}
+
+.itemInteractive:active {
+  background-color: '[theme:neutralLight, default:#edebe9]';
+}
+
+.itemInteractive:focus-visible {
+  outline: 2px solid '[theme:themePrimary, default:#0078d4]';
+  outline-offset: -2px;
+}
+
+.itemAccent {
+  flex: 0 0 auto;
+  width: 3px;
+  align-self: stretch;
+  border-radius: 2px;
+  background-color: currentColor;
+}
+
+.itemIcon {
+  flex: 0 0 auto;
+  font-size: 16px;
+  margin-top: 2px;
+}
+
+.itemText {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.itemTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: '[theme:neutralPrimary, default:#323130]';
+}
+
+.itemTitleEmphasized {
+  font-weight: 600;
+  color: currentColor;
+}
+
+.itemMeta {
+  font-size: 12px;
+  color: '[theme:neutralSecondary, default:#605e5c]';
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemDescription {
+  font-size: 12px;
+  color: '[theme:neutralSecondary, default:#605e5c]';
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.itemBadge {
+  flex: 0 0 auto;
+  align-self: center;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  padding: 0 8px;
+  border-radius: 10px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+
+/* ----------------------------------------------------------------- stat ---- */
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 64px;
+  text-align: center;
+  text-decoration: none;
+  color: '[theme:neutralPrimary, default:#323130]';
+}
+
+.statLabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: '[theme:neutralSecondary, default:#605e5c]';
+}
+
+.statValue {
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: currentColor;
+}
+
+.statCaption {
+  color: '[theme:neutralSecondary, default:#605e5c]';
+}
+
+.statIcon {
+  font-size: 20px;
+}
+
+/* ---------------------------------------------------------------- prose ---- */
+
+.prose {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-sizing: border-box;
+  height: 100%;
+  color: '[theme:neutralPrimary, default:#323130]';
+}
+
+.proseHeading {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.proseBody {
+  margin: 0;
+  color: '[theme:neutralSecondary, default:#605e5c]';
+}
+
+.proseBody > p {
+  margin: 0 0 8px;
+}
+
+.proseBody > p:last-child {
+  margin-bottom: 0;
+}
+
+/* ---------------------------------------------------------------- cards ---- */
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cardsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+.cardsItem {
+  display: flex;
+  min-width: 0;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid '[theme:neutralLight, default:#edebe9]';
+  border-left: 3px solid currentColor;
+  border-radius: 6px;
+  background: '[theme:white, default:#ffffff]';
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  color: '[theme:themePrimary, default:#0078d4]';
+}
+
+.cardInteractive {
+  cursor: pointer;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.cardInteractive:hover {
+  box-shadow: 0 1.6px 3.6px rgba(0, 0, 0, 0.1), 0 0.3px 0.9px rgba(0, 0, 0, 0.07);
+  border-color: currentColor;
+}
+
+.cardInteractive:focus-visible {
+  outline: 2px solid '[theme:themePrimary, default:#0078d4]';
+  outline-offset: 1px;
+}
+
+.cardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 0;
+}
+
+.cardTop:empty {
+  display: none;
+}
+
+.cardIcon {
+  font-size: 16px;
+}
+
+.cardBadge {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  padding: 0 8px;
+  border-radius: 10px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+
+.cardTitle {
+  color: '[theme:neutralPrimary, default:#323130]';
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.cardTitleEmphasized {
+  font-weight: 600;
+  color: currentColor;
+}
+
+.cardMeta {
+  font-size: 12px;
+  color: '[theme:neutralSecondary, default:#605e5c]';
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardDescription {
+  font-size: 12px;
+  color: '[theme:neutralSecondary, default:#605e5c]';
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* -------------------------------------------------------- adaptive card ---- */
+
+.adaptiveCard {
+  /* The renderer writes its own DOM here; only the outer box is ours. */
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* The renderer sets the card's padding and background as inline styles, and the tile
+   body already provides both — hence the override. */
+.adaptiveCard :global(.ac-adaptiveCard) {
+  padding: 0 !important;
+  background-color: transparent !important;
+}
+
+/* We deliberately do not ship the Adaptive Cards stylesheet, so its actions would
+   otherwise render as bare browser buttons. This brings them close to Fluent's. */
+.adaptiveCard :global(.ac-pushButton) {
+  min-height: 32px;
+  padding: 4px 16px;
+  border: 1px solid '[theme:neutralSecondaryAlt, default:#8a8886]';
+  border-radius: 4px;
+  background-color: '[theme:white, default:#ffffff]';
+  color: '[theme:neutralPrimary, default:#323130]';
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.adaptiveCard :global(.ac-pushButton:hover) {
+  background-color: '[theme:neutralLighter, default:#f3f2f1]';
+}
+
+.adaptiveCard :global(.ac-pushButton:focus-visible) {
+  outline: 2px solid '[theme:themePrimary, default:#0078d4]';
+  outline-offset: 1px;
+}
+
+/* ---------------------------------------------------------- view picker ---- */
+
+.viewSetting {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.viewSettingLabel {
+  font-weight: 600;
+  font-size: 14px;
+  color: '[theme:neutralPrimary, default:#323130]';
+}
+
+.viewOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.viewOption {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid '[theme:neutralLight, default:#edebe9]';
+  border-radius: 4px;
+  background: '[theme:white, default:#ffffff]';
+  font: inherit;
+  font-size: 12px;
+  color: '[theme:neutralPrimary, default:#323130]';
+  cursor: pointer;
+}
+
+.viewOption:hover {
+  background: '[theme:neutralLighter, default:#f3f2f1]';
+}
+
+.viewOption:focus-visible {
+  outline: 2px solid '[theme:themePrimary, default:#0078d4]';
+  outline-offset: 1px;
+}
+
+.viewOptionSelected {
+  border-color: '[theme:themePrimary, default:#0078d4]';
+  background: '[theme:themeLighterAlt, default:#eff6fc]';
+  color: '[theme:themeDarker, default:#004578]';
+  font-weight: 600;
+}
+
+.viewOptionIcon {
+  font-size: 14px;
+}
+
+.viewOptionText {
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------- settings ---- */
+
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settingsDescription {
+  margin: 0;
+  font-size: 12px;
+  color: '[theme:neutralSecondary, default:#605e5c]';
+}

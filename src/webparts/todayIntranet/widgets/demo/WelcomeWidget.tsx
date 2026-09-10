@@ -1,40 +1,36 @@
 import * as React from 'react';
 import { IWidgetContext } from '../IWidget';
+import { SettingsSurface, TextSetting, WidgetProse, textSetting } from '../content';
 
-const styleSheet: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '8px',
-  height: '100%'
-};
+const DEFAULT_GREETING: string = 'Good to see you';
 
 /**
- * Placeholder widget that proves settings round-trip through the layout store.
+ * Reference implementation: it shows how a widget reads its own settings, and how
+ * text content is laid out with the shared `WidgetProse` primitive.
  */
 export const WelcomeWidget: React.FunctionComponent<{ context: IWidgetContext }> = ({ context }) => {
-  const greeting = (context.settings.greeting as string) ?? 'Good to see you';
+  const greeting = textSetting(context, 'greeting', DEFAULT_GREETING);
   const displayName = context.spContext.pageContext.user.displayName;
 
   return (
-    <div style={styleSheet}>
-      <div style={{ fontSize: '20px', fontWeight: 600 }}>
-        {greeting}, {displayName.split(' ')[0]}.
-      </div>
-      <p style={{ margin: 0 }}>
+    <WidgetProse heading={`${greeting}, ${displayName.split(' ')[0]}.`}>
+      <p>
         This tile is a placeholder. Real widgets (calendar, mail, tasks) plug in the same way:
-        implement <code>IWidgetDefinition</code> and register it.
+        describe the content with the shapes in <code>widgets/content</code>, implement{' '}
+        <code>IWidgetDefinition</code> and register it.
       </p>
-      {context.isEditing && (
-        <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px' }}>
-          Greeting
-          <input
-            type="text"
-            value={greeting}
-            onChange={(e) => context.updateSettings({ ...context.settings, greeting: e.target.value })}
-            onMouseDown={(e) => e.stopPropagation()}
-          />
-        </label>
-      )}
-    </div>
+    </WidgetProse>
   );
 };
+
+export const WelcomeWidgetSettings: React.FunctionComponent<{ context: IWidgetContext }> = ({ context }) => (
+  <SettingsSurface description="Only this tile changes. Everyone keeps their own settings.">
+    <TextSetting
+      context={context}
+      settingKey="greeting"
+      label="Greeting"
+      fallback={DEFAULT_GREETING}
+      maxLength={40}
+    />
+  </SettingsSurface>
+);

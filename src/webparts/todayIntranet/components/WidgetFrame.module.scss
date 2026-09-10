@@ -9,6 +9,11 @@
   background-color: '[theme:white, default:#ffffff]';
   border: 1px solid '[theme:neutralLight, default:#edebe9]';
   box-shadow: 0 1.6px 3.6px rgba(0, 0, 0, 0.08), 0 0.3px 0.9px rgba(0, 0, 0, 0.06);
+  transition: box-shadow 150ms ease, border-color 150ms ease;
+}
+
+.frame:hover {
+  box-shadow: 0 3.2px 7.2px rgba(0, 0, 0, 0.13), 0 0.6px 1.8px rgba(0, 0, 0, 0.11);
 }
 
 .frameEditing {
@@ -20,7 +25,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 6px 8px 6px 12px;
+  min-height: 40px;
+  box-sizing: border-box;
   border-bottom: 1px solid '[theme:neutralLighter, default:#f3f2f1]';
   flex: 0 0 auto;
 }
@@ -32,14 +39,45 @@
 
 .settingsCallout {
   padding: 16px;
-  min-width: 240px;
+  min-width: 260px;
+  max-width: 340px;
+  max-height: 60vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.settingsStack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Settings that need the room, such as a search query with a live preview. */
+.settingsCalloutWide {
+  min-width: 420px;
+  max-width: 480px;
+  max-height: 74vh;
+}
+
+.settingsTitle {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: '[theme:neutralPrimary, default:#323130]';
 }
 
 .dragHandle {
   cursor: move;
 }
 
+.gripper {
+  flex: 0 0 auto;
+  margin-left: -6px;
+  font-size: 12px;
+  color: '[theme:neutralTertiary, default:#a19f9d]';
+}
+
 .icon {
+  flex: 0 0 auto;
   color: '[theme:themePrimary, default:#0078d4]';
 }
 
@@ -52,14 +90,51 @@
   color: '[theme:neutralPrimary, default:#323130]';
 }
 
+/* Tile actions stay out of the way until the tile is hovered or focused, so a
+   dashboard full of widgets does not read as a wall of buttons. */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.frame:hover .actions,
+.frame:focus-within .actions {
+  opacity: 1;
+}
+
+.actionsPinned {
+  opacity: 1;
+}
+
+/* Nothing reveals them on a touch screen, so there they are always visible. */
+@media (hover: none) {
+  .actions {
+    opacity: 1;
+  }
+}
+
 .body {
   flex: 1 1 auto;
+  box-sizing: border-box;
   padding: 12px;
   overflow: auto;
   color: '[theme:neutralPrimary, default:#323130]';
 }
 
-.missing {
-  padding: 12px;
-  color: '[theme:neutralSecondary, default:#605e5c]';
+.footer {
+  flex: 0 0 auto;
+  padding: 0 12px 10px;
+}
+
+.footerLink {
+  font-size: 12px;
+}
+
+.footerIcon {
+  font-size: 10px;
+  margin-left: 4px;
 }

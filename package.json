@@ -20,6 +20,7 @@
     "@microsoft/sp-office-ui-fabric-core": "1.23.2",
     "@microsoft/sp-property-pane": "1.23.2",
     "@microsoft/sp-webpart-base": "1.23.2",
+    "adaptivecards": "^3.0.6",
     "react": "17.0.1",
     "react-dom": "17.0.1",
     "react-grid-layout": "^1.5.2",
