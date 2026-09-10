@@ -7,7 +7,10 @@ move, resize and remove widgets. Each person's arrangement is saved for them per
 Built on SPFx **1.23.2** with the Heft toolchain (gulp is no longer used), React 17 and Fluent UI v8.
 
 **See it in action:** [`docs/intranettoday_medium.mp4`](docs/intranettoday_medium.mp4) is a screen
-recording of the current build. GitHub plays it inline when you open the file.
+recording of the current build. Click the screenshot below to open the recording.
+
+[![Dashboard with Calendar, My mail, Clock and Search results arranged in two columns](docs/screenshots/dashboard.png)](docs/intranettoday_medium.mp4)
+
 
 ## Getting started
 
@@ -65,6 +68,10 @@ bar, then arrow keys to move and Shift+arrows to resize. Because the grid compac
 vertical nudge swaps the tile with whatever sits above or below it rather than leaving a gap.
 
 ### Layouts
+
+![Layout picker offering tile heights and eight column arrangements](docs/screenshots/layout-picker.png)
+
+*Frame at 00:44: choosing a two-column layout with medium-height tiles.*
 
 **Choose a layout** in edit mode opens a picker with two choices that together define the grid:
 
@@ -379,6 +386,11 @@ Query     [ FileType:aspx               ]
 The preview runs exactly what the tile will run — including refusing to run when the widget would.
 The Search results widget needs terms, so a scope on its own reports that rather than showing a
 sample of the site the tile would never display.
+
+![Search settings with Everywhere scope, a filetype:pdf query and a preview reporting 2494 results](docs/screenshots/search-preview.png)
+
+*Frame at 00:20: selecting a view and scope, entering KQL, and previewing the query.
+Result titles are redacted.*
 
 ## Widgets
 
