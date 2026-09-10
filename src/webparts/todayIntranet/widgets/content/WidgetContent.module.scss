@@ -1,3 +1,4 @@
+@use '../../styles/widgetVisuals' as visual;
 @import '~@microsoft/sp-office-ui-fabric-core/dist/sass/SPFabricCore.scss';
 
 /* Presentation for every widget. Widgets describe what they want to show with the
@@ -6,54 +7,76 @@
 /* ---------------------------------------------------------------- tones ---- */
 
 .toneNeutral {
-  color: '[theme:neutralSecondary, default:#605e5c]';
+  @include visual.tone(
+    '[theme:neutralSecondary, default:#605e5c]',
+    '[theme:neutralSecondary, default:#605e5c]',
+    '[theme:neutralLighter, default:#f3f2f1]'
+  );
 }
 
 .toneAccent {
-  color: '[theme:themePrimary, default:#0078d4]';
+  @include visual.tone(
+    '[theme:themeDark, default:#005a9e]',
+    '[theme:themePrimary, default:#0078d4]',
+    '[theme:themeLighterAlt, default:#eff6fc]'
+  );
 }
 
 .toneSuccess {
-  color: '[theme:green, default:#107c10]';
+  @include visual.tone(
+    '[theme:successText, default:#107c10]',
+    '[theme:successText, default:#107c10]',
+    '[theme:successBackground, default:#dff6dd]'
+  );
 }
 
 .toneWarning {
-  color: '[theme:yellowDark, default:#d29200]';
+  @include visual.tone(
+    '[theme:warningText, default:#323130]',
+    '[theme:yellowDark, default:#d29200]',
+    '[theme:warningBackground, default:#fff4ce]'
+  );
 }
 
 .toneDanger {
-  color: '[theme:redDark, default:#a4262c]';
+  @include visual.tone(
+    '[theme:errorText, default:#a4262c]',
+    '[theme:errorText, default:#a4262c]',
+    '[theme:errorBackground, default:#fde7e9]'
+  );
 }
 
 /* --------------------------------------------------------------- states ---- */
 
 .centered {
+  @include visual.text;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: visual.$space-sm;
   box-sizing: border-box;
   height: 100%;
   min-height: 80px;
-  padding: 8px;
+  padding: visual.$space-sm;
   text-align: center;
 }
 
 .emptyIcon {
-  font-size: 28px;
+  font-size: 24px;
   color: '[theme:neutralTertiary, default:#a19f9d]';
 }
 
 .emptyText {
   color: '[theme:neutralSecondary, default:#605e5c]';
   max-width: 34ch;
+  overflow-wrap: anywhere;
 }
 
 .skeleton {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: visual.$space-md;
   box-sizing: border-box;
   padding: 4px 2px;
 }
@@ -61,17 +84,18 @@
 .skeletonRow {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: visual.$space-md;
 }
 
 .skeletonBlock {
-  border-radius: 4px;
+  --widget-shimmer-color: "[theme:neutralLight, default:#edebe9]";
+  border-radius: visual.$radius-sm;
   background: '[theme:neutralLighter, default:#f3f2f1]';
   background-image: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.65) 50%,
-    rgba(255, 255, 255, 0) 100%
+    transparent 0%,
+    var(--widget-shimmer-color) 50%,
+    transparent 100%
   );
   background-repeat: no-repeat;
   background-size: 160px 100%;
@@ -165,7 +189,7 @@
 .list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: visual.$space-xs;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -174,22 +198,27 @@
 .item {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: visual.$space-md;
   width: 100%;
   box-sizing: border-box;
-  padding: 8px 6px;
+  padding: visual.$space-sm;
   border: none;
-  border-radius: 4px;
+  border-radius: visual.$radius-sm;
   background: none;
   font: inherit;
+  @include visual.text;
   text-align: left;
   text-decoration: none;
-  color: inherit;
+  color: var(--widget-tone-text, inherit);
 }
 
 .itemCompact {
-  gap: 8px;
-  padding: 5px 6px;
+  gap: visual.$space-sm;
+  padding: visual.$space-xs visual.$space-sm;
+}
+
+.itemCompact .itemText {
+  gap: 2px;
 }
 
 .itemInteractive {
@@ -197,7 +226,7 @@
 }
 
 .itemInteractive:hover {
-  background-color: '[theme:neutralLighter, default:#f3f2f1]';
+  background-color: '[theme:neutralLighterAlt, default:#faf9f8]';
 }
 
 .itemInteractive:active {
@@ -205,8 +234,7 @@
 }
 
 .itemInteractive:focus-visible {
-  outline: 2px solid '[theme:themePrimary, default:#0078d4]';
-  outline-offset: -2px;
+  @include visual.focus-ring;
 }
 
 .itemAccent {
@@ -214,13 +242,14 @@
   width: 3px;
   align-self: stretch;
   border-radius: 2px;
-  background-color: currentColor;
+  background-color: var(--widget-tone-accent, currentColor);
 }
 
 .itemIcon {
   flex: 0 0 auto;
   font-size: 16px;
   margin-top: 2px;
+  color: var(--widget-tone-accent, currentColor);
 }
 
 .itemText {
@@ -228,7 +257,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: visual.$space-xs;
 }
 
 .itemTitle {
@@ -244,7 +273,7 @@
 }
 
 .itemMeta {
-  font-size: 12px;
+  @include visual.meta;
   color: '[theme:neutralSecondary, default:#605e5c]';
   overflow: hidden;
   text-overflow: ellipsis;
@@ -252,7 +281,7 @@
 }
 
 .itemDescription {
-  font-size: 12px;
+  @include visual.meta;
   color: '[theme:neutralSecondary, default:#605e5c]';
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -261,37 +290,39 @@
 }
 
 .itemBadge {
+  @include visual.meta;
   flex: 0 0 auto;
   align-self: center;
-  font-size: 11px;
   font-weight: 600;
-  line-height: 16px;
-  padding: 0 8px;
-  border-radius: 10px;
-  border: 1px solid currentColor;
+  padding: 2px visual.$space-sm;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background-color: var(--widget-tone-background);
+  color: var(--widget-tone-text, inherit);
   white-space: nowrap;
 }
 
 /* ----------------------------------------------------------------- stat ---- */
 
 .stat {
+  @include visual.text;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: visual.$space-xs;
   box-sizing: border-box;
   height: 100%;
   min-height: 64px;
   text-align: center;
   text-decoration: none;
-  color: '[theme:neutralPrimary, default:#323130]';
+  color: var(--widget-tone-text, '[theme:neutralPrimary, default:#323130]');
 }
 
 .statLabel {
-  font-size: 11px;
+  @include visual.meta;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: '[theme:neutralSecondary, default:#605e5c]';
 }
@@ -301,22 +332,31 @@
   font-weight: 600;
   line-height: 1.1;
   color: currentColor;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .statCaption {
+  @include visual.meta;
   color: '[theme:neutralSecondary, default:#605e5c]';
 }
 
 .statIcon {
   font-size: 20px;
+  color: var(--widget-tone-accent, currentColor);
+}
+
+a.stat:focus-visible {
+  @include visual.focus-ring;
 }
 
 /* ---------------------------------------------------------------- prose ---- */
 
 .prose {
+  @include visual.text;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: visual.$space-sm;
   box-sizing: border-box;
   height: 100%;
   color: '[theme:neutralPrimary, default:#323130]';
@@ -332,6 +372,7 @@
 .proseBody {
   margin: 0;
   color: '[theme:neutralSecondary, default:#605e5c]';
+  overflow-wrap: anywhere;
 }
 
 .proseBody > p {
@@ -347,7 +388,7 @@
 .cards {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: visual.$space-sm;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -355,8 +396,8 @@
 
 .cardsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(min(160px, 100%), 1fr));
+  gap: visual.$space-sm;
 }
 
 .cardsItem {
@@ -365,36 +406,38 @@
 }
 
 .card {
+  @include visual.themed-border;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: visual.$space-xs;
   flex: 1 1 auto;
   min-width: 0;
   box-sizing: border-box;
-  padding: 10px 12px;
-  border: 1px solid '[theme:neutralLight, default:#edebe9]';
-  border-left: 3px solid currentColor;
-  border-radius: 6px;
+  padding: visual.$space-md;
+  border-left: 3px solid var(--widget-tone-accent, currentColor);
+  border-radius: visual.$radius-md;
   background: '[theme:white, default:#ffffff]';
   font: inherit;
+  @include visual.text;
   text-align: left;
   text-decoration: none;
-  color: '[theme:themePrimary, default:#0078d4]';
+  color: var(--widget-tone-text, inherit);
 }
 
 .cardInteractive {
   cursor: pointer;
-  transition: border-color 150ms ease, box-shadow 150ms ease;
+  transition: border-color 150ms ease, background-color 150ms ease;
 }
 
 .cardInteractive:hover {
-  box-shadow: 0 1.6px 3.6px rgba(0, 0, 0, 0.1), 0 0.3px 0.9px rgba(0, 0, 0, 0.07);
-  border-color: currentColor;
+  border-top-color: '[theme:neutralTertiary, default:#a19f9d]';
+  border-right-color: '[theme:neutralTertiary, default:#a19f9d]';
+  border-bottom-color: '[theme:neutralTertiary, default:#a19f9d]';
+  background-color: '[theme:neutralLighterAlt, default:#faf9f8]';
 }
 
 .cardInteractive:focus-visible {
-  outline: 2px solid '[theme:themePrimary, default:#0078d4]';
-  outline-offset: 1px;
+  @include visual.focus-ring;
 }
 
 .cardTop {
@@ -411,16 +454,18 @@
 
 .cardIcon {
   font-size: 16px;
+  color: var(--widget-tone-accent, currentColor);
 }
 
 .cardBadge {
+  @include visual.meta;
   margin-left: auto;
-  font-size: 11px;
   font-weight: 600;
-  line-height: 16px;
-  padding: 0 8px;
-  border-radius: 10px;
-  border: 1px solid currentColor;
+  padding: 2px visual.$space-sm;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background-color: var(--widget-tone-background);
+  color: var(--widget-tone-text, inherit);
   white-space: nowrap;
 }
 
@@ -439,7 +484,7 @@
 }
 
 .cardMeta {
-  font-size: 12px;
+  @include visual.meta;
   color: '[theme:neutralSecondary, default:#605e5c]';
   overflow: hidden;
   text-overflow: ellipsis;
@@ -447,7 +492,7 @@
 }
 
 .cardDescription {
-  font-size: 12px;
+  @include visual.meta;
   color: '[theme:neutralSecondary, default:#605e5c]';
   display: -webkit-box;
   -webkit-line-clamp: 3;
@@ -458,8 +503,10 @@
 /* -------------------------------------------------------- adaptive card ---- */
 
 .adaptiveCard {
+  @include visual.scrollbar;
   /* The renderer writes its own DOM here; only the outer box is ours. */
   width: 100%;
+  max-width: 100%;
   overflow-x: auto;
 }
 
@@ -473,14 +520,14 @@
 /* We deliberately do not ship the Adaptive Cards stylesheet, so its actions would
    otherwise render as bare browser buttons. This brings them close to Fluent's. */
 .adaptiveCard :global(.ac-pushButton) {
+  @include visual.themed-border('[theme:neutralSecondaryAlt, default:#8a8886]');
+  @include visual.text;
   min-height: 32px;
-  padding: 4px 16px;
-  border: 1px solid '[theme:neutralSecondaryAlt, default:#8a8886]';
-  border-radius: 4px;
+  padding: visual.$space-xs visual.$space-lg;
+  border-radius: visual.$radius-sm;
   background-color: '[theme:white, default:#ffffff]';
   color: '[theme:neutralPrimary, default:#323130]';
   font-family: inherit;
-  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -490,8 +537,11 @@
 }
 
 .adaptiveCard :global(.ac-pushButton:focus-visible) {
-  outline: 2px solid '[theme:themePrimary, default:#0078d4]';
-  outline-offset: 1px;
+  @include visual.focus-ring;
+}
+
+.adaptiveCard :global(.ac-selectable:focus-visible) {
+  @include visual.focus-ring;
 }
 
 /* ---------------------------------------------------------- view picker ---- */
@@ -503,8 +553,8 @@
 }
 
 .viewSettingLabel {
+  @include visual.text;
   font-weight: 600;
-  font-size: 14px;
   color: '[theme:neutralPrimary, default:#323130]';
 }
 
@@ -515,15 +565,16 @@
 }
 
 .viewOption {
+  @include visual.themed-border;
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 10px;
-  border: 1px solid '[theme:neutralLight, default:#edebe9]';
-  border-radius: 4px;
+  min-height: 32px;
+  padding: visual.$space-xs visual.$space-sm;
+  border-radius: visual.$radius-sm;
   background: '[theme:white, default:#ffffff]';
   font: inherit;
-  font-size: 12px;
+  @include visual.meta;
   color: '[theme:neutralPrimary, default:#323130]';
   cursor: pointer;
 }
@@ -533,11 +584,11 @@
 }
 
 .viewOption:focus-visible {
-  outline: 2px solid '[theme:themePrimary, default:#0078d4]';
-  outline-offset: 1px;
+  @include visual.focus-ring;
 }
 
-.viewOptionSelected {
+.viewOptionSelected,
+.viewOptionSelected:hover {
   border-color: '[theme:themePrimary, default:#0078d4]';
   background: '[theme:themeLighterAlt, default:#eff6fc]';
   color: '[theme:themeDarker, default:#004578]';
@@ -555,13 +606,38 @@
 /* ------------------------------------------------------------- settings ---- */
 
 .settings {
+  @include visual.text;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: visual.$space-md;
 }
 
 .settingsDescription {
+  @include visual.meta;
   margin: 0;
-  font-size: 12px;
   color: '[theme:neutralSecondary, default:#605e5c]';
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cardInteractive {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .itemBadge,
+  .cardBadge {
+    border-color: CanvasText;
+  }
+
+  .itemInteractive:hover,
+  .cardInteractive:hover {
+    outline: 1px solid Highlight;
+    outline-offset: -1px;
+  }
+
+  .viewOptionSelected {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
 }

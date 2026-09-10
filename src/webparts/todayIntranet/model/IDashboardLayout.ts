@@ -6,6 +6,8 @@ export interface IWidgetInstance {
   id: string;
   /** Key of the widget definition in the widget registry. */
   type: string;
+  /** Personal title for this instance. Blank or absent uses the registered name. */
+  title?: string;
   /** Column (0 based) on a 12 column grid. */
   x: number;
   /** Row (0 based), expressed in grid row units. */
@@ -31,7 +33,7 @@ export interface IDashboardLayout {
   rowSizeId?: string;
 }
 
-/** v2 added the optional presetId / rowSizeId fields; v1 layouts load unchanged. */
+/** v2 supports optional titles and presetId / rowSizeId; older layouts load unchanged. */
 export const CURRENT_LAYOUT_VERSION: number = 2;
 
 export function emptyLayout(): IDashboardLayout {

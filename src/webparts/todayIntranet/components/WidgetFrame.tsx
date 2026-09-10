@@ -3,6 +3,7 @@ import { Icon } from '@fluentui/react/lib/Icon';
 import { IconButton } from '@fluentui/react/lib/Button';
 import { Link } from '@fluentui/react/lib/Link';
 import { Callout, DirectionalHint } from '@fluentui/react/lib/Callout';
+import { TextField } from '@fluentui/react/lib/TextField';
 import styles from './WidgetFrame.module.scss';
 import { WidgetErrorBoundary } from './WidgetErrorBoundary';
 import { IWidgetInstance } from '../model/IDashboardLayout';
@@ -25,6 +26,7 @@ export interface IWidgetFrameProps {
   isEditing: boolean;
   onRemove(instanceId: string): void;
   onNudge(instanceId: string, nudge: INudge): void;
+  onUpdateTitle(instanceId: string, title: string): void;
 }
 
 const ARROW_MOVES: Record<string, INudge> = {
@@ -43,24 +45,22 @@ const ARROW_RESIZES: Record<string, INudge> = {
 
 /** Fluent's own class beats a stylesheet rule here, so the size is set on the button. */
 const ACTION_BUTTON_STYLES: { root: { width: number; height: number } } = {
-  root: { width: 28, height: 28 }
+  root: { width: 32, height: 32 }
 };
 
 /** Shared chrome (title bar, drag handle, refresh, settings, remove) around every widget. */
 export const WidgetFrame: React.FunctionComponent<IWidgetFrameProps> = (props) => {
-  const { instance, widgetContext, isEditing, onRemove, onNudge } = props;
+  const { instance, widgetContext, isEditing, onRemove, onNudge, onUpdateTitle } = props;
   const definition = WidgetRegistry.get(instance.type);
-  const name = definition ? definition.displayName : instance.type;
+  const defaultName = definition ? definition.displayName : instance.type;
+  const name = instance.title?.trim() || defaultName;
 
   const [isSettingsOpen, setIsSettingsOpen] = React.useState<boolean>(false);
   const [refreshToken, setRefreshToken] = React.useState<number>(0);
   const settingsButtonId = `widget-settings-${instance.id}`;
 
-  // A widget offering more than one view gets the picker, and therefore a gear,
-  // whether or not it has settings of its own.
   const views = definition?.supportedViews ?? [];
   const hasViewPicker = views.length > 1;
-  const hasSettings = !!definition?.renderSettings || hasViewPicker;
 
   React.useEffect(() => {
     if (!isEditing) {
@@ -105,7 +105,7 @@ export const WidgetFrame: React.FunctionComponent<IWidgetFrameProps> = (props) =
           <Icon iconName="GripperDotsVertical" className={styles.gripper} aria-hidden="true" />
         )}
         <Icon iconName={definition ? definition.iconName : 'Unknown'} className={styles.icon} aria-hidden="true" />
-        <div className={styles.title}>{name}</div>
+        <div className={styles.title} title={name}>{name}</div>
 
         {/* Quiet until the tile is hovered or focused, so a full dashboard stays calm. */}
         <div className={`${styles.actions} ${isEditing ? styles.actionsPinned : ''}`}>
@@ -119,7 +119,7 @@ export const WidgetFrame: React.FunctionComponent<IWidgetFrameProps> = (props) =
               onMouseDown={(e) => e.stopPropagation()}
             />
           )}
-          {isEditing && hasSettings && (
+          {isEditing && (
             <IconButton
               id={settingsButtonId}
               styles={ACTION_BUTTON_STYLES}
@@ -164,7 +164,7 @@ export const WidgetFrame: React.FunctionComponent<IWidgetFrameProps> = (props) =
         </div>
       )}
 
-      {isSettingsOpen && definition && hasSettings && (
+      {isSettingsOpen && (
         <Callout
           target={`#${settingsButtonId}`}
           directionalHint={DirectionalHint.bottomRightEdge}
@@ -173,17 +173,24 @@ export const WidgetFrame: React.FunctionComponent<IWidgetFrameProps> = (props) =
           role="dialog"
           ariaLabel={`${name} settings`}
         >
-          <div className={`${styles.settingsCallout} ${definition.isSettingsWide ? styles.settingsCalloutWide : ''}`}>
+          <div className={`${styles.settingsCallout} ${definition?.isSettingsWide ? styles.settingsCalloutWide : ''}`}>
             <div className={styles.settingsTitle}>{name}</div>
             <div className={styles.settingsStack}>
+              <TextField
+                label="Title"
+                value={instance.title ?? ''}
+                placeholder={defaultName}
+                description={`Leave blank to use "${defaultName}".`}
+                onChange={(_, value) => onUpdateTitle(instance.id, value ?? '')}
+              />
               {hasViewPicker && (
                 <ViewSetting
                   context={context}
                   views={views}
-                  fallback={definition.defaultView ?? views[0]}
+                  fallback={definition?.defaultView ?? views[0]}
                 />
               )}
-              {definition.renderSettings && definition.renderSettings(context)}
+              {definition?.renderSettings && definition.renderSettings(context)}
             </div>
           </div>
         </Callout>

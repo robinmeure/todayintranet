@@ -1,0 +1,56 @@
+$space-xs: 4px;
+$space-sm: 8px;
+$space-md: 12px;
+$space-lg: 16px;
+$radius-sm: 4px;
+$radius-md: 6px;
+$radius-lg: 8px;
+$text-size: 14px;
+$text-line-height: 20px;
+$meta-size: 12px;
+$meta-line-height: 16px;
+$shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+
+@mixin text {
+  font-size: $text-size;
+  line-height: $text-line-height;
+}
+
+@mixin meta {
+  font-size: $meta-size;
+  line-height: $meta-line-height;
+}
+
+@mixin tone($text, $accent, $background) {
+  --widget-tone-text: "#{$text}";
+  --widget-tone-accent: "#{$accent}";
+  --widget-tone-background: "#{$background}";
+  color: var(--widget-tone-text);
+}
+
+// cssnano strips or lowercases quoted theme tokens in border shorthands.
+// A local custom property preserves the token until SPFx resolves the theme.
+@mixin themed-border($token: '[theme:neutralLight, default:#edebe9]', $side: null, $width: 1px, $style: solid) {
+  --widget-border-color: "#{$token}";
+  @if $side {
+    border-#{$side}: $width $style var(--widget-border-color);
+  } @else {
+    border: $width $style var(--widget-border-color);
+  }
+}
+
+@mixin focus-ring($offset: -2px) {
+  --widget-focus-color: "[theme:focusBorder, default:#605e5c]";
+  outline: 2px solid var(--widget-focus-color);
+  outline-offset: $offset;
+
+  @media (forced-colors: active) {
+    outline-color: Highlight;
+  }
+}
+
+@mixin scrollbar {
+  --widget-scrollbar-thumb: "[theme:neutralSecondaryAlt, default:#8a8886]";
+  --widget-scrollbar-track: "[theme:white, default:#ffffff]";
+  scrollbar-color: var(--widget-scrollbar-thumb) var(--widget-scrollbar-track);
+}

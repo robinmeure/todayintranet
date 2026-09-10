@@ -1,8 +1,9 @@
 import * as React from 'react';
-import { ITheme, useTheme } from '@fluentui/react/lib/Theme';
+import { useTheme } from '@fluentui/react/lib/Theme';
 import { IWidgetError } from './IWidgetContent';
 import { AdaptiveCardPayload } from './toAdaptiveCard';
 import { WidgetErrorMessage, WidgetLoading } from './WidgetStates';
+import { toAdaptiveCardHostConfig } from './adaptiveCardHostConfig';
 import styles from './WidgetContent.module.scss';
 
 type AdaptiveCardsLibrary = typeof import('adaptivecards');
@@ -18,52 +19,6 @@ function loadAdaptiveCards(): Promise<AdaptiveCardsLibrary> {
     pending = import(/* webpackChunkName: 'adaptivecards' */ 'adaptivecards');
   }
   return pending;
-}
-
-/** Maps the SPFx / Fluent theme onto an Adaptive Cards host config. */
-function toHostConfig(theme: ITheme): Record<string, unknown> {
-  const palette = theme.palette;
-  const foregroundColors = {
-    default: { default: palette.neutralPrimary, subtle: palette.neutralSecondary },
-    accent: { default: palette.themePrimary, subtle: palette.themeSecondary },
-    good: { default: palette.green, subtle: palette.greenLight },
-    warning: { default: palette.yellowDark, subtle: palette.yellow },
-    attention: { default: palette.redDark, subtle: palette.red },
-    light: { default: palette.neutralTertiary, subtle: palette.neutralQuaternary },
-    dark: { default: palette.neutralDark, subtle: palette.neutralSecondary }
-  };
-
-  return {
-    fontFamily: theme.fonts.medium.fontFamily,
-    // Zero padding: the tile body already provides it.
-    spacing: { none: 0, small: 4, default: 8, medium: 12, large: 16, extraLarge: 24, padding: 0 },
-    separator: { lineThickness: 1, lineColor: palette.neutralLight },
-    fontSizes: { small: 11, default: 14, medium: 15, large: 18, extraLarge: 22 },
-    fontWeights: { lighter: 300, default: 400, bolder: 600 },
-    containerStyles: {
-      default: { backgroundColor: palette.white, foregroundColors },
-      emphasis: { backgroundColor: palette.neutralLighter, foregroundColors },
-      accent: { backgroundColor: palette.themeLighterAlt, foregroundColors },
-      good: { backgroundColor: palette.white, foregroundColors },
-      warning: { backgroundColor: palette.white, foregroundColors },
-      attention: { backgroundColor: palette.white, foregroundColors }
-    },
-    actions: {
-      actionsOrientation: 'Horizontal',
-      actionAlignment: 'Left',
-      buttonSpacing: 8,
-      maxActions: 5,
-      spacing: 'Default',
-      showCard: { actionMode: 'Inline', inlineTopMargin: 8 }
-    },
-    factSet: {
-      title: { weight: 'Bolder', wrap: true, maxWidth: 150 },
-      value: { wrap: true },
-      spacing: 8
-    },
-    adaptiveCard: { allowCustomStyle: false },
-    imageSet: { imageSize: 'Medium', maxImageHeight: 100 }
-  };
 }
 
 export interface IWidgetAdaptiveCardProps {
@@ -126,7 +81,7 @@ export const WidgetAdaptiveCard: React.FunctionComponent<IWidgetAdaptiveCardProp
       };
 
       const adaptiveCard = new library.AdaptiveCard();
-      adaptiveCard.hostConfig = new library.HostConfig(toHostConfig(theme));
+      adaptiveCard.hostConfig = new library.HostConfig(toAdaptiveCardHostConfig(theme));
       adaptiveCard.onExecuteAction = (action) => {
         if (action instanceof library.OpenUrlAction) {
           if (action.url) {

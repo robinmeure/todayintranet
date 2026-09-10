@@ -364,8 +364,14 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
 
   const handleUpdateSettings = React.useCallback(
     (instanceId: string, settings: Record<string, unknown>) =>
-      update(widgets.map((w) => (w.id === instanceId ? { ...w, settings } : w))),
-    [widgets, update]
+      update(widgetsRef.current.map((w) => (w.id === instanceId ? { ...w, settings } : w))),
+    [update]
+  );
+
+  const handleUpdateTitle = React.useCallback(
+    (instanceId: string, widgetTitle: string) =>
+      update(widgetsRef.current.map((w) => (w.id === instanceId ? { ...w, title: widgetTitle } : w))),
+    [update]
   );
 
   const handleReset = React.useCallback(() => {
@@ -512,6 +518,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
                   isEditing={isEditing}
                   onRemove={handleRemove}
                   onNudge={handleNudge}
+                  onUpdateTitle={handleUpdateTitle}
                 />
               </div>
             );

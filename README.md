@@ -6,11 +6,13 @@ move, resize and remove widgets. Each person's arrangement is saved for them per
 
 Built on SPFx **1.23.2** with the Heft toolchain (gulp is no longer used), React 17 and Fluent UI v8.
 
-**See it in action:** [`docs/intranettoday_medium.mp4`](docs/intranettoday_medium.mp4) is a screen
-recording of the current build. Click the screenshot below to open the recording.
+**See it in action:** [`docs/intranettoday_medium.mp4`](docs/intranettoday_medium.mp4) demonstrates
+widget views, settings, and layout editing. Click the screenshot below to open the recording.
 
 [![Dashboard with Calendar, My mail, Clock and Search results arranged in two columns](docs/screenshots/dashboard.png)](docs/intranettoday_medium.mp4)
 
+The recording and its extracted screenshots show an earlier build. The current shared styling is
+described under [Visual style](#visual-style).
 
 ## Getting started
 
@@ -277,9 +279,9 @@ One tone vocabulary drives all five views, so the same meaning gets the same emp
 | Tone | Where it comes from | In list / cards | In an Adaptive Card |
 | --- | --- | --- | --- |
 | `neutral` | An event later in the week, a read message | Grey bar and icon | `Default` |
-| `accent` | Unread mail, an event today | Theme colour | `Accent` |
+| `accent` | Unread mail, an event today | Theme accent with a darker text foreground | `Accent` |
 | `success` | A meeting happening right now | Green | `Good` |
-| `warning` | A high-importance task | Amber | `Warning` |
+| `warning` | A high-importance task | Amber accent and pale badge, with readable warning text | `Warning` |
 | `danger` | An overdue task | Red, plus an "Overdue" badge | `Attention` |
 
 ### Adaptive Cards
@@ -330,6 +332,10 @@ an API is the better route for something the whole site should see.
 
 `WidgetFrame` wraps every widget and owns everything outside the content:
 
+- **Title** — enter **Edit dashboard**, open a widget's settings, and change **Title**. Every widget
+  has this field, including Clock and widgets without other settings. The header and accessible labels
+  update as you type, and the usual autosave keeps the title for that instance. Clear the field to
+  restore the widget's default name; whitespace-only titles also use the default.
 - **Refresh** — widgets that set `isRefreshable` get a refresh button; pressing it bumps
   `IWidgetContext.refreshToken`, which `useGraphData` treats as a dependency. The frame never has to
   know where the data came from.
@@ -337,6 +343,49 @@ an API is the better route for something the whole site should see.
   and on touch screens, so a full dashboard does not read as a wall of icons.
 - **Footer link** — a definition's `footerLink` becomes the tile's "Open calendar" style link.
 - Each tile is a labelled region, so screen reader users can jump between widgets.
+
+Custom titles live in the optional `IWidgetInstance.title` field, separate from widget-owned
+`settings`. Renaming one tile does not rename other instances or its catalogue entry. Existing
+layouts without a title continue to use the registered name, and changing layouts preserves titles.
+
+### Visual style
+
+The shared surfaces use a restrained SharePoint-native style: neutral backgrounds, soft borders,
+modest rounding, and quiet elevation. A whole widget does not lift on hover as though it were a link;
+interactive items and controls have their own hover and focus feedback.
+
+Native surfaces share [a small Sass vocabulary](src/webparts/todayIntranet/styles/_widgetVisuals.scss):
+
+| Element | Shared treatment |
+| --- | --- |
+| Spacing | 4, 8, 12, and 16px steps; existing grid gaps and saved tile sizes are unchanged |
+| Body text | 14px with a 20px line height |
+| Secondary metadata | 12px with a 16px line height |
+| Tile actions | 32px targets, with space reserved even when the actions are hidden |
+| Compact view | Tighter row padding and text gaps, without hiding fields or changing item limits |
+
+The Adaptive Card host uses the same text hierarchy and theme-aware status foregrounds. Tone text,
+accent bars, and badge backgrounds are separate: for example, a warning can retain its amber accent
+without using low-contrast yellow for small text. Ordinary titles stay neutral; existing unread and
+status emphasis remains meaningful.
+
+Use the shared `themed-border` and `focus-ring` mixins when adding a surface. The build's CSS minifier
+can strip quoted theme tokens from border shorthands, or lowercase a case-sensitive theme key when
+combining longhands. The mixins preserve those tokens in local CSS custom properties until SPFx
+resolves them. No global theme override or fixed light-only palette is needed.
+
+Widget settings, the catalogue, layout picker, and search preview use the same visual rules. Wide
+settings fit within narrow viewports, Gallery adapts to the tile's available width, and long titles
+truncate without overlapping actions. Scrollbars follow the theme. Keyboard focus remains visible,
+forced-colors mode uses system indicators, and reduced-motion preferences disable the shared
+shimmers, progress animation, action fades, card transitions, and grid transitions.
+
+The [Adaptive Card host tests](src/webparts/todayIntranet/widgets/content/adaptiveCardHostConfig.test.ts)
+cover typography, semantic theme colors, and preserved action settings:
+
+```bash
+npx heft test --production --test-path-pattern adaptiveCardHostConfig --disable-code-coverage
+```
 
 ### Search widgets
 

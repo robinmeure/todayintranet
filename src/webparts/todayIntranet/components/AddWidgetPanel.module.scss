@@ -1,5 +1,8 @@
+@use '../styles/widgetVisuals' as visual;
+
 .intro {
-  margin: 0 0 12px;
+  @include visual.text;
+  margin: 0 0 visual.$space-md;
   color: '[theme:neutralSecondary, default:#605e5c]';
 }
 
@@ -13,10 +16,10 @@
 }
 
 .groupTitle {
-  margin: 0 0 8px;
-  font-size: 12px;
+  @include visual.meta;
+  margin: 0 0 visual.$space-sm;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: '[theme:neutralSecondary, default:#605e5c]';
 }
@@ -24,21 +27,22 @@
 .catalogue {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: visual.$space-sm;
 }
 
 /* The whole card adds the widget: one target, and it works from the keyboard. */
 .card {
+  @include visual.themed-border;
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: visual.$space-md;
   width: 100%;
   box-sizing: border-box;
-  padding: 12px;
-  border: 1px solid '[theme:neutralLight, default:#edebe9]';
-  border-radius: 6px;
+  padding: visual.$space-md;
+  border-radius: visual.$radius-md;
   background: '[theme:white, default:#ffffff]';
   font: inherit;
+  @include visual.text;
   text-align: left;
   cursor: pointer;
   transition: border-color 150ms ease, background-color 150ms ease;
@@ -50,8 +54,7 @@
 }
 
 .card:focus-visible {
-  outline: 2px solid '[theme:themePrimary, default:#0078d4]';
-  outline-offset: 1px;
+  @include visual.focus-ring;
 }
 
 .cardIcon {
@@ -75,8 +78,8 @@
 }
 
 .cardDescription {
+  @include visual.meta;
   color: '[theme:neutralSecondary, default:#605e5c]';
-  font-size: 12px;
 }
 
 .cardTags {
@@ -87,10 +90,9 @@
 }
 
 .tag {
-  font-size: 11px;
-  line-height: 18px;
-  padding: 0 8px;
-  border-radius: 9px;
+  @include visual.meta;
+  padding: 2px visual.$space-sm;
+  border-radius: 12px;
   background: '[theme:neutralLighter, default:#f3f2f1]';
   color: '[theme:neutralSecondary, default:#605e5c]';
   white-space: nowrap;
@@ -106,4 +108,10 @@
   align-self: center;
   font-size: 16px;
   color: '[theme:themePrimary, default:#0078d4]';
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
 }

@@ -1,19 +1,18 @@
+@use '../styles/widgetVisuals' as visual;
 @import '~@microsoft/sp-office-ui-fabric-core/dist/sass/SPFabricCore.scss';
 
 .frame {
+  @include visual.text;
+  @include visual.themed-border;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
   height: 100%;
+  min-width: 0;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: visual.$radius-lg;
   background-color: '[theme:white, default:#ffffff]';
-  border: 1px solid '[theme:neutralLight, default:#edebe9]';
-  box-shadow: 0 1.6px 3.6px rgba(0, 0, 0, 0.08), 0 0.3px 0.9px rgba(0, 0, 0, 0.06);
-  transition: box-shadow 150ms ease, border-color 150ms ease;
-}
-
-.frame:hover {
-  box-shadow: 0 3.2px 7.2px rgba(0, 0, 0, 0.13), 0 0.6px 1.8px rgba(0, 0, 0, 0.11);
+  box-shadow: visual.$shadow;
 }
 
 .frameEditing {
@@ -22,25 +21,26 @@
 }
 
 .header {
+  @include visual.themed-border('[theme:neutralLighter, default:#f3f2f1]', bottom);
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px 6px 12px;
-  min-height: 40px;
+  gap: visual.$space-sm;
+  padding: visual.$space-xs visual.$space-sm visual.$space-xs visual.$space-md;
+  min-height: 44px;
   box-sizing: border-box;
-  border-bottom: 1px solid '[theme:neutralLighter, default:#f3f2f1]';
   flex: 0 0 auto;
 }
 
 .header:focus-visible {
-  outline: 2px solid '[theme:themePrimary, default:#0078d4]';
-  outline-offset: -2px;
+  @include visual.focus-ring;
 }
 
 .settingsCallout {
-  padding: 16px;
-  min-width: 260px;
-  max-width: 340px;
+  @include visual.text;
+  @include visual.scrollbar;
+  padding: visual.$space-lg;
+  width: 340px;
+  max-width: calc(100vw - 32px);
   max-height: 60vh;
   overflow-y: auto;
   box-sizing: border-box;
@@ -49,19 +49,18 @@
 .settingsStack {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: visual.$space-lg;
 }
 
 /* Settings that need the room, such as a search query with a live preview. */
 .settingsCalloutWide {
-  min-width: 420px;
-  max-width: 480px;
+  width: 480px;
   max-height: 74vh;
 }
 
 .settingsTitle {
   font-weight: 600;
-  margin-bottom: 8px;
+  margin-bottom: visual.$space-sm;
   color: '[theme:neutralPrimary, default:#323130]';
 }
 
@@ -78,11 +77,13 @@
 
 .icon {
   flex: 0 0 auto;
+  font-size: 16px;
   color: '[theme:themePrimary, default:#0078d4]';
 }
 
 .title {
   flex: 1 1 auto;
+  min-width: 0;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -95,7 +96,7 @@
 .actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: visual.$space-xs;
   flex: 0 0 auto;
   opacity: 0;
   transition: opacity 150ms ease;
@@ -118,23 +119,46 @@
 }
 
 .body {
+  @include visual.scrollbar;
   flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
   box-sizing: border-box;
-  padding: 12px;
+  padding: visual.$space-md;
   overflow: auto;
   color: '[theme:neutralPrimary, default:#323130]';
 }
 
 .footer {
   flex: 0 0 auto;
-  padding: 0 12px 10px;
+  padding: 0 visual.$space-md visual.$space-sm;
 }
 
 .footerLink {
-  font-size: 12px;
+  @include visual.meta;
+  display: inline-flex;
+  align-items: center;
+  gap: visual.$space-xs;
+  min-height: 24px;
 }
 
 .footerIcon {
   font-size: 10px;
-  margin-left: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .actions {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .frame {
+    border-color: CanvasText;
+    box-shadow: none;
+  }
+
+  .frameEditing {
+    border-color: Highlight;
+  }
 }

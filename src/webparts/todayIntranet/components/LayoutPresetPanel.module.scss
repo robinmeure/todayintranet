@@ -1,52 +1,55 @@
+@use '../styles/widgetVisuals' as visual;
+
 .intro {
+  @include visual.meta;
   margin: 12px 0 16px;
   color: '[theme:neutralSecondary, default:#605e5c]';
-  font-size: 12px;
 }
 
 .gallery {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  padding: 16px 0 8px;
+  gap: visual.$space-md;
+  padding: visual.$space-lg 0 visual.$space-sm;
 }
 
 .card {
+  @include visual.themed-border;
   display: block;
   width: 100%;
   text-align: left;
-  padding: 10px;
-  border: 1px solid '[theme:neutralLight, default:#edebe9]';
-  border-radius: 6px;
+  padding: visual.$space-md;
+  border-radius: visual.$radius-md;
   background: '[theme:white, default:#ffffff]';
   color: '[theme:neutralPrimary, default:#323130]';
   cursor: pointer;
   font-family: inherit;
+  @include visual.text;
 
   &:hover {
     border-color: '[theme:neutralTertiary, default:#a19f9d]';
   }
 
   &:focus-visible {
-    outline: 2px solid '[theme:themePrimary, default:#0078d4]';
-    outline-offset: 2px;
+    @include visual.focus-ring;
   }
 }
 
-.cardSelected {
+.cardSelected,
+.cardSelected:hover {
+  --widget-selection-color: "[theme:themePrimary, default:#0078d4]";
   border-color: '[theme:themePrimary, default:#0078d4]';
-  box-shadow: inset 0 0 0 1px '[theme:themePrimary, default:#0078d4]';
+  box-shadow: inset 0 0 0 1px var(--widget-selection-color);
 }
 
 .cardTitle {
   font-weight: 600;
-  font-size: 13px;
-  margin-top: 8px;
+  margin-top: visual.$space-sm;
 }
 
 .cardDescription {
+  @include visual.meta;
   color: '[theme:neutralSecondary, default:#605e5c]';
-  font-size: 11px;
   margin-top: 2px;
 }
 
@@ -76,5 +79,12 @@
 
 .footer {
   display: flex;
-  gap: 8px;
+  gap: visual.$space-sm;
+}
+
+@media (forced-colors: active) {
+  .cardSelected {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
 }

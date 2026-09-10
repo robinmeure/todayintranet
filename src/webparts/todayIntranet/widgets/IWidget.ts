@@ -68,6 +68,7 @@ export type WidgetFooterLink = IWidgetLink | ((context: IWidgetContext) => IWidg
 export interface IWidgetDefinition {
   /** Stable key persisted in the layout. Never rename an existing one. */
   type: string;
+  /** Catalogue name and default title for instances without a custom title. */
   displayName: string;
   description: string;
   /** Fluent UI icon name shown in the catalogue and tile header. */
@@ -99,7 +100,7 @@ export interface IWidgetDefinition {
   minSize?: IWidgetSize;
   render(context: IWidgetContext): React.ReactElement;
   /**
-   * Optional configuration UI, shown in the tile's settings flyout while the
+   * Optional widget-specific UI below the shared Title / View settings while the
    * dashboard is in edit mode. Use `context.updateSettings` to persist changes.
    */
   renderSettings?(context: IWidgetContext): React.ReactElement;

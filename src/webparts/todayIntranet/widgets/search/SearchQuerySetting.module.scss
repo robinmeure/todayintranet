@@ -1,16 +1,18 @@
+@use '../../styles/widgetVisuals' as visual;
+
 .scopeDescription {
+  @include visual.meta;
   margin: 4px 0 0;
-  font-size: 12px;
   color: '[theme:neutralSecondary, default:#605e5c]';
 }
 
 .preview {
+  @include visual.themed-border;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid '[theme:neutralLight, default:#edebe9]';
-  border-radius: 6px;
+  gap: visual.$space-sm;
+  padding: visual.$space-md;
+  border-radius: visual.$radius-md;
   background: '[theme:neutralLighterAlt, default:#faf9f8]';
 }
 
@@ -22,21 +24,21 @@
 }
 
 .previewTitle {
+  @include visual.meta;
   font-weight: 600;
-  font-size: 12px;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: '[theme:neutralSecondary, default:#605e5c]';
 }
 
 .query {
+  @include visual.themed-border;
+  @include visual.meta;
   display: block;
   padding: 8px;
   border-radius: 4px;
   background: '[theme:white, default:#ffffff]';
-  border: 1px solid '[theme:neutralLight, default:#edebe9]';
   font-family: Consolas, 'Courier New', monospace;
-  font-size: 12px;
   line-height: 1.5;
   color: '[theme:neutralPrimary, default:#323130]';
   overflow-wrap: anywhere;
@@ -50,7 +52,7 @@
 }
 
 .count {
-  font-size: 12px;
+  @include visual.meta;
   color: '[theme:neutralSecondary, default:#605e5c]';
 }
 
@@ -64,7 +66,7 @@
 }
 
 .hit {
-  font-size: 12px;
+  @include visual.meta;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
