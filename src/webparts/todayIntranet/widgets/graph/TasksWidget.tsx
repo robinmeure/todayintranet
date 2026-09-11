@@ -17,6 +17,7 @@ import {
 
 const SCOPE: string = 'Tasks.Read';
 const DEFAULT_MAX_ITEMS: number = 6;
+const MAX_ITEMS_BOUNDS = { min: 1, max: 20 };
 const TODO_URL: string = 'https://to-do.office.com/tasks/';
 
 export const TODO_LINK: IWidgetLink = { text: 'Open To Do', href: TODO_URL };
@@ -57,7 +58,7 @@ function toItem(task: TodoTask, index: number, today: Date, locale: string | und
 }
 
 export const TasksWidget: React.FunctionComponent<{ context: IWidgetContext }> = ({ context }) => {
-  const maxItems = numberSetting(context, 'maxItems', DEFAULT_MAX_ITEMS);
+  const maxItems = numberSetting(context, 'maxItems', DEFAULT_MAX_ITEMS, MAX_ITEMS_BOUNDS);
   const dueOnly = booleanSetting(context, 'dueOnly', false);
   const view = viewSetting(context, TASKS_DEFAULT_VIEW);
   const locale = context.spContext.pageContext.cultureInfo.currentUICultureName || undefined;
@@ -135,8 +136,7 @@ export const TasksWidgetSettings: React.FunctionComponent<{ context: IWidgetCont
       settingKey="maxItems"
       label="Tasks to show"
       fallback={DEFAULT_MAX_ITEMS}
-      min={1}
-      max={20}
+      {...MAX_ITEMS_BOUNDS}
     />
     <ToggleSetting context={context} settingKey="dueOnly" label="Only tasks with a due date" fallback={false} />
   </SettingsSurface>

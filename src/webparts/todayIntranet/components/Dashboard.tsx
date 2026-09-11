@@ -10,6 +10,7 @@ import styles from './Dashboard.module.scss';
 import { WidgetFrame, INudge } from './WidgetFrame';
 import { AddWidgetPanel } from './AddWidgetPanel';
 import { LayoutPresetPanel } from './LayoutPresetPanel';
+import { LayoutStorageStatus } from './LayoutStorageStatus';
 import { IDashboardLayout, IWidgetInstance, CURRENT_LAYOUT_VERSION } from '../model/IDashboardLayout';
 import {
   GRID_COLUMNS,
@@ -18,7 +19,7 @@ import {
   getRowSize,
   DEFAULT_ROW_SIZE_ID
 } from '../model/LayoutPresets';
-import { ILayoutStore } from '../services/ILayoutStore';
+import { ILayoutStore, ILayoutStoreStatus, LayoutStoreAction } from '../services/ILayoutStore';
 import { IWidgetHostContext, IWidgetDefinition } from '../widgets/IWidget';
 import { WidgetRegistry } from '../widgets/WidgetRegistry';
 
@@ -27,7 +28,6 @@ const ResponsiveGridLayout = WidthProvider(Responsive);
 const BREAKPOINTS: Record<string, number> = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 };
 const COLS: Record<string, number> = { lg: GRID_COLUMNS, md: 8, sm: 6, xs: 4, xxs: 2 };
 const ROW_HEIGHT: number = 56;
-const SAVE_DEBOUNCE_MS: number = 800;
 
 export interface IDashboardProps {
   title: string;
@@ -126,12 +126,13 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
   const [breakpoint, setBreakpoint] = React.useState<string>('lg');
   const [presetId, setPresetId] = React.useState<string | undefined>(undefined);
   const [rowSizeId, setRowSizeId] = React.useState<string>(DEFAULT_ROW_SIZE_ID);
-  const [storeMessage, setStoreMessage] = React.useState<string | undefined>(undefined);
-
-  const saveTimer = React.useRef<number | undefined>(undefined);
-  /** Layout waiting out the debounce, kept so it can still be written if this goes away. */
-  const pendingSave = React.useRef<IDashboardLayout | undefined>(undefined);
-  const isMounted = React.useRef<boolean>(true);
+  const [storeStatus, setStoreStatus] = React.useState<ILayoutStoreStatus>(() => store.getStatus());
+  const [operationError, setOperationError] = React.useState<string | undefined>();
+  const [isResolving, setIsResolving] = React.useState<boolean>(false);
+  const [confirmation, setConfirmation] = React.useState<'reset' | 'import-legacy' | undefined>();
+  const session = React.useMemo(() => ({ store, active: true, loaded: false, resolving: false, saveSequence: 0 }), [store]);
+  const currentSession = React.useRef(session);
+  currentSession.current = session;
   const widgetsRef = React.useRef<IWidgetInstance[]>(widgets);
   const presetRef = React.useRef<string | undefined>(undefined);
   const rowSizeRef = React.useRef<string>(DEFAULT_ROW_SIZE_ID);
@@ -140,94 +141,75 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
   // callback fires and the narrow layout would overwrite the authored one.
   const breakpointRef = React.useRef<string>('lg');
 
-  React.useEffect(() => {
-    widgetsRef.current = widgets;
-  }, [widgets]);
-
-  React.useEffect(() => {
-    isMounted.current = true;
-    return () => {
-      isMounted.current = false;
-    };
+  const applyLayout = React.useCallback((layout: IDashboardLayout) => {
+    widgetsRef.current = layout.widgets;
+    presetRef.current = getPreset(layout.presetId)?.id;
+    rowSizeRef.current = getRowSize(layout.rowSizeId).id;
+    setWidgets(layout.widgets);
+    setPresetId(presetRef.current);
+    setRowSizeId(rowSizeRef.current);
   }, []);
 
+  const isCurrentSession = React.useCallback(
+    () => session.active && currentSession.current === session,
+    [session]
+  );
+
   React.useEffect(() => {
-    // The store is replaced when the author repoints the dashboard id, so show the
-    // spinner again rather than leaving the previous scope's widgets on screen.
+    let cancelled = false;
+    session.active = true;
+    const isCurrent = (): boolean => !cancelled && isCurrentSession();
+    const refreshStatus = (): void => {
+      if (isCurrent()) {
+        setStoreStatus(store.getStatus());
+      }
+    };
     setIsLoading(true);
-    store
-      .load()
-      .then((stored) => {
-        if (!isMounted.current) {
-          return;
-        }
-        const layout = stored ?? starterLayout;
-        widgetsRef.current = layout.widgets;
-        presetRef.current = getPreset(layout.presetId)?.id;
-        rowSizeRef.current = getRowSize(layout.rowSizeId).id;
-        setWidgets(layout.widgets);
-        setPresetId(presetRef.current);
-        setRowSizeId(rowSizeRef.current);
-        setStoreMessage(store.getStatus().message);
-        setIsLoading(false);
-      })
-      .catch(() => {
-        if (!isMounted.current) {
-          return;
-        }
-        setWidgets(starterLayout.widgets);
-        setIsLoading(false);
-      });
-    // The store is created once per web part instance.
-  }, [store]);
+    setIsEditing(false);
+    setIsCatalogueOpen(false);
+    setIsLayoutPanelOpen(false);
+    setConfirmation(undefined);
+    setOperationError(undefined);
+    setIsResolving(false);
+    const unsubscribe = store.subscribe(refreshStatus);
+    refreshStatus();
 
-  /** Writes whatever the debounce is holding. Does nothing when nothing is pending. */
-  const flushSave = React.useCallback(() => {
-    const layout = pendingSave.current;
-    if (layout === undefined) {
-      return;
-    }
-    pendingSave.current = undefined;
-    store
-      .save(layout)
-      .then(() => {
-        if (isMounted.current) {
-          setStoreMessage(store.getStatus().message);
+    const load = async (): Promise<void> => {
+      try {
+        const stored = await store.load();
+        if (isCurrent()) {
+          applyLayout(stored ?? starterLayout);
         }
-      })
-      .catch(() => {
-        /* the store already degraded to local storage */
-      });
-  }, [store]);
-
-  const persist = React.useCallback(
-    (next: IWidgetInstance[], preset: string | undefined, rowSize: string) => {
-      pendingSave.current = {
-        version: CURRENT_LAYOUT_VERSION,
-        widgets: next,
-        presetId: preset,
-        rowSizeId: rowSize
-      };
-      if (saveTimer.current !== undefined) {
-        window.clearTimeout(saveTimer.current);
+      } catch {
+        if (isCurrent()) {
+          // A starter is only a visual fallback, never an implicit recovery write.
+          applyLayout(starterLayout);
+          setOperationError('The saved layout could not be loaded. Use the recovery actions below.');
+        }
+      } finally {
+        if (isCurrent()) {
+          session.loaded = true;
+          refreshStatus();
+          setIsLoading(false);
+        }
       }
-      saveTimer.current = window.setTimeout(flushSave, SAVE_DEBOUNCE_MS);
-    },
-    [flushSave]
-  );
-
-  // A rearrangement made inside the debounce window would otherwise be dropped when
-  // the dashboard unmounts, or when the author repoints it at another dashboard id.
-  React.useEffect(
-    () => () => {
-      if (saveTimer.current !== undefined) {
-        window.clearTimeout(saveTimer.current);
-        saveTimer.current = undefined;
+    };
+    load().catch(() => {
+      if (isCurrent()) {
+        session.loaded = true;
+        setIsLoading(false);
+        setOperationError('The saved layout could not be loaded. Use the recovery actions below.');
       }
-      flushSave();
-    },
-    [flushSave]
-  );
+    });
+
+    return () => {
+      cancelled = true;
+      session.active = false;
+      unsubscribe();
+      store.dispose();
+    };
+    // A starter-layout property change must not reload an already open dashboard.
+  }, [store, session, applyLayout, isCurrentSession]);
 
   /**
    * Single write path. `preset` records which layout preset the widgets currently
@@ -235,17 +217,42 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
    */
   const commit = React.useCallback(
     (next: IWidgetInstance[], preset: string | undefined, rowSize?: string) => {
+      if (!session.active || !session.loaded || session.resolving || !store.getStatus().canEdit) {
+        return;
+      }
       widgetsRef.current = next;
       presetRef.current = preset;
       if (rowSize) {
         rowSizeRef.current = rowSize;
-        setRowSizeId(rowSize);
       }
-      setWidgets(next);
-      setPresetId(preset);
-      persist(next, preset, rowSizeRef.current);
+      if (isCurrentSession()) {
+        setWidgets(next);
+        setPresetId(preset);
+        setRowSizeId(rowSizeRef.current);
+        setOperationError(undefined);
+      }
+      const sequence = ++session.saveSequence;
+      const refresh = (failed: boolean): void => {
+        if (isCurrentSession() && sequence === session.saveSequence) {
+          setStoreStatus(store.getStatus());
+          if (failed) {
+            setOperationError('The layout could not be saved. Your changes may not survive closing this page.');
+          }
+        }
+      };
+      try {
+        // save checkpoints locally before returning; Done publishes the checkpoint.
+        store.save({
+          version: CURRENT_LAYOUT_VERSION,
+          widgets: next,
+          presetId: preset,
+          rowSizeId: rowSizeRef.current
+        }).then(() => refresh(false), () => refresh(true));
+      } catch {
+        refresh(true);
+      }
     },
-    [persist]
+    [store, session, isCurrentSession]
   );
 
   /** Geometry changed but the preset it came from still holds. */
@@ -256,11 +263,11 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
 
   /** The user moved something by hand, so the layout no longer matches a preset. */
   const markCustom = React.useCallback(() => {
-    if (presetRef.current !== undefined) {
+    if (session.active && session.loaded && !session.resolving && store.getStatus().canEdit && presetRef.current !== undefined) {
       presetRef.current = undefined;
       setPresetId(undefined);
     }
-  }, []);
+  }, [store, session]);
 
   const handleLayoutChange = React.useCallback(
     (current: Layout[]) => {
@@ -287,26 +294,26 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
         id: newInstanceId(),
         type: definition.type,
         x: 0,
-        y: widgets.reduce((acc, w) => Math.max(acc, w.y + w.h), 0),
+        y: widgetsRef.current.reduce((acc, w) => Math.max(acc, w.y + w.h), 0),
         w: definition.defaultSize.w,
         h: definition.defaultSize.h
       };
-      const next = [...widgets, added];
+      const next = [...widgetsRef.current, added];
       const preset = getPreset(presetRef.current);
       // A preset stays in force, so a new widget drops into the next free slot.
       update(preset ? applyPreset(next, preset, getRowSize(rowSizeRef.current)) : next);
       setIsCatalogueOpen(false);
     },
-    [widgets, update]
+    [update]
   );
 
   const handleRemove = React.useCallback(
     (instanceId: string) => {
-      const next = widgets.filter((w) => w.id !== instanceId);
+      const next = widgetsRef.current.filter((w) => w.id !== instanceId);
       const preset = getPreset(presetRef.current);
       update(preset ? applyPreset(next, preset, getRowSize(rowSizeRef.current)) : next);
     },
-    [widgets, update]
+    [update]
   );
 
   const handleApplyPreset = React.useCallback(
@@ -379,6 +386,96 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
     commit(next, getPreset(starterLayout.presetId)?.id, getRowSize(starterLayout.rowSizeId).id);
   }, [starterLayout, commit]);
 
+  const executeAction = React.useCallback(async (action: LayoutStoreAction): Promise<void> => {
+    if (!isCurrentSession() || session.resolving) {
+      return;
+    }
+    const status = store.getStatus();
+    if (action === 'reset' && status.actions.indexOf('reset') < 0 && status.canEdit) {
+      handleReset();
+      return;
+    }
+    if (status.actions.indexOf(action) < 0) {
+      return;
+    }
+    setOperationError(undefined);
+    if (action === 'export') {
+      let url: string | undefined;
+      const link = document.createElement('a');
+      try {
+        url = URL.createObjectURL(new Blob([store.exportRecovery()], { type: 'application/json' }));
+        link.href = url;
+        link.download = 'dashboard-layout-recovery.json';
+        document.body.appendChild(link);
+        link.click();
+      } catch {
+        setOperationError('Recovery data could not be exported. Please try again.');
+      } finally {
+        link.remove();
+        if (url) {
+          URL.revokeObjectURL(url);
+        }
+      }
+      return;
+    }
+    session.resolving = true;
+    ++session.saveSequence;
+    setIsResolving(true);
+    try {
+      const layout = await store.resolve(
+        action,
+        action === 'reset' || action === 'use-remote' ? starterLayout : undefined
+      );
+      if (isCurrentSession()) {
+        applyLayout(layout ?? starterLayout);
+      }
+    } catch {
+      if (isCurrentSession()) {
+        setOperationError('The recovery action could not be completed. Review the storage status, then retry or export recovery data.');
+      }
+    } finally {
+      // eslint-disable-next-line require-atomic-updates -- Only one resolution can run per session.
+      session.resolving = false;
+      if (isCurrentSession()) {
+        setStoreStatus(store.getStatus());
+        setIsResolving(false);
+      }
+    }
+  }, [store, session, isCurrentSession, handleReset, starterLayout, applyLayout]);
+
+  const runAction = React.useCallback((action: LayoutStoreAction): void => {
+    executeAction(action).catch(() => {
+      if (isCurrentSession()) {
+        setOperationError('The recovery action could not be completed. Please try again.');
+      }
+    });
+  }, [executeAction, isCurrentSession]);
+
+  const handleDone = React.useCallback((): void => {
+    setIsEditing(false);
+    // Closing edit mode first unmounts any open draft fields. Their layout-effect
+    // cleanup checkpoints the final value locally before this task publishes it.
+    window.setTimeout(() => {
+      if (!isCurrentSession()) {
+        return;
+      }
+      store.publish().catch(() => {
+          if (isCurrentSession()) {
+            setStoreStatus(store.getStatus());
+            setOperationError('The local changes could not be saved to SharePoint. They remain in this browser.');
+          }
+        });
+    }, 0);
+  }, [store, isCurrentSession]);
+
+  const requestAction = React.useCallback((action: LayoutStoreAction): void => {
+    if (action === 'reset' || action === 'import-legacy') {
+      setConfirmation(action);
+    } else {
+      runAction(action);
+    }
+  }, [runAction]);
+
   /**
    * A finished drag or resize is the moment the arrangement stops matching a preset.
    * Doing it here rather than in onLayoutChange means the compaction that follows
@@ -399,6 +496,8 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
   );
 
   const activePreset = getPreset(presetId);
+  const canEdit = session.loaded && !isLoading && storeStatus.canEdit && !isResolving;
+  const editing = isEditing && canEdit;
 
   const gridLayouts = React.useMemo(() => toGridLayouts(widgets), [widgets]);
 
@@ -413,12 +512,19 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
     });
   }, [theme]);
 
-  if (isLoading) {
+  if (isLoading || !session.loaded) {
     return (
       <div className={styles.dashboard}>
         <div className={styles.loading}>
           <Spinner size={SpinnerSize.large} label="Loading your dashboard…" />
         </div>
+        <LayoutStorageStatus
+          status={session.loaded ? storeStatus : store.getStatus()}
+          busy={true}
+          onAction={requestAction}
+          onConfirm={() => undefined}
+          onCancel={() => undefined}
+        />
       </div>
     );
   }
@@ -427,41 +533,51 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
     <ThemeProvider theme={fluentTheme} applyTo="none" className={styles.dashboard}>
       <div className={styles.toolbar}>
         <h2 className={styles.heading}>{title}</h2>
-        {isEditing && (
+        {editing && (
           <span className={styles.layoutBadge}>
             Layout: {activePreset ? activePreset.name : 'Custom'}
           </span>
         )}
-        {isEditing && <DefaultButton iconProps={{ iconName: 'Add' }} text="Add a widget" onClick={() => setIsCatalogueOpen(true)} />}
-        {isEditing && (
+        {editing && <DefaultButton iconProps={{ iconName: 'Add' }} text="Add a widget" onClick={() => setIsCatalogueOpen(true)} />}
+        {editing && (
           <DefaultButton
             iconProps={{ iconName: 'GridViewMedium' }}
             text="Choose a layout"
             onClick={() => setIsLayoutPanelOpen(true)}
           />
         )}
-        {isEditing && <DefaultButton iconProps={{ iconName: 'Refresh' }} text="Reset" onClick={handleReset} />}
+        {editing && <DefaultButton iconProps={{ iconName: 'Refresh' }} text="Reset" onClick={() => requestAction('reset')} />}
         {isEditing ? (
-          <PrimaryButton iconProps={{ iconName: 'CheckMark' }} text="Done" onClick={() => setIsEditing(false)} />
+          <PrimaryButton iconProps={{ iconName: 'CheckMark' }} text="Done" onClick={handleDone} />
         ) : (
-          <DefaultButton iconProps={{ iconName: 'Edit' }} text="Edit dashboard" onClick={() => setIsEditing(true)} />
+          <DefaultButton iconProps={{ iconName: 'Edit' }} text="Edit dashboard" disabled={!canEdit} onClick={() => setIsEditing(true)} />
         )}
       </div>
 
-      {storeMessage && (
-        <MessageBar messageBarType={MessageBarType.warning} isMultiline={true}>
-          {storeMessage}
-        </MessageBar>
-      )}
+      <LayoutStorageStatus
+        status={storeStatus}
+        error={operationError}
+        busy={isResolving}
+        confirmation={confirmation}
+        onAction={requestAction}
+        onCancel={() => setConfirmation(undefined)}
+        onConfirm={() => {
+          const action = confirmation;
+          setConfirmation(undefined);
+          if (action) {
+            runAction(action);
+          }
+        }}
+      />
 
-      {isEditing && breakpoint === 'lg' && (
+      {editing && breakpoint === 'lg' && (
         <MessageBar messageBarType={MessageBarType.info}>
           Drag a widget by its title bar, or focus a title bar with the Tab key and use the arrow keys to move it —
           hold Shift with the arrow keys to resize.
         </MessageBar>
       )}
 
-      {isEditing && breakpoint !== 'lg' && (
+      {editing && breakpoint !== 'lg' && (
         <MessageBar messageBarType={MessageBarType.info}>
           Widgets stack automatically on narrow screens. Rearrange on a wider window to change the saved layout.
         </MessageBar>
@@ -473,6 +589,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
           <PrimaryButton
             iconProps={{ iconName: 'Add' }}
             text="Add a widget"
+            disabled={!canEdit}
             onClick={() => {
               setIsEditing(true);
               setIsCatalogueOpen(true);
@@ -488,8 +605,8 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
           rowHeight={ROW_HEIGHT}
           margin={[16, 16]}
           containerPadding={[0, 0]}
-          isDraggable={isEditing}
-          isResizable={isEditing}
+          isDraggable={editing}
+          isResizable={editing}
           draggableHandle=".widget-drag-handle"
           compactType="vertical"
           onBreakpointChange={(next) => {
@@ -507,7 +624,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
               instanceId: widget.id,
               settings: widget.settings ?? {},
               spContext,
-              isEditing,
+              isEditing: editing,
               updateSettings: (settings) => handleUpdateSettings(widget.id, settings)
             };
             return (
@@ -515,7 +632,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
                 <WidgetFrame
                   instance={widget}
                   widgetContext={widgetContext}
-                  isEditing={isEditing}
+                  isEditing={editing}
                   onRemove={handleRemove}
                   onNudge={handleNudge}
                   onUpdateTitle={handleUpdateTitle}
@@ -527,14 +644,14 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
       )}
 
       <AddWidgetPanel
-        isOpen={isCatalogueOpen}
+        isOpen={isCatalogueOpen && canEdit}
         existingTypes={widgets.map((widget) => widget.type)}
         onDismiss={() => setIsCatalogueOpen(false)}
         onAdd={handleAdd}
       />
 
       <LayoutPresetPanel
-        isOpen={isLayoutPanelOpen}
+        isOpen={isLayoutPanelOpen && canEdit}
         presetId={presetId}
         rowSizeId={rowSizeId}
         widgetCount={widgets.length}

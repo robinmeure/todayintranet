@@ -24,6 +24,7 @@ const SELECT_PROPERTIES: string[] = [
   'HitHighlightedSummary'
 ];
 const DEFAULT_MAX_ITEMS: number = 6;
+const MAX_ITEMS_BOUNDS = { min: 1, max: 20 };
 const DEFAULT_SCOPE: SearchScope = 'siteCollection';
 
 export const SEARCH_DEFAULT_VIEW: WidgetItemsView = 'list';
@@ -61,7 +62,7 @@ function toItem(row: ISearchRow, index: number, locale: string | undefined): IWi
 
 export const SearchResultsWidget: React.FunctionComponent<{ context: IWidgetContext }> = ({ context }) => {
   const scope = scopeSetting(context, DEFAULT_SCOPE);
-  const maxItems = numberSetting(context, 'maxItems', DEFAULT_MAX_ITEMS);
+  const maxItems = numberSetting(context, 'maxItems', DEFAULT_MAX_ITEMS, MAX_ITEMS_BOUNDS);
   const view = viewSetting(context, SEARCH_DEFAULT_VIEW);
   const terms = typeof context.settings.terms === 'string' ? context.settings.terms : '';
   const locale = context.spContext.pageContext.cultureInfo.currentUICultureName || undefined;
@@ -117,8 +118,7 @@ export const SearchResultsWidgetSettings: React.FunctionComponent<{ context: IWi
       settingKey="maxItems"
       label="Results to show"
       fallback={DEFAULT_MAX_ITEMS}
-      min={1}
-      max={20}
+      {...MAX_ITEMS_BOUNDS}
     />
   </SettingsSurface>
 );

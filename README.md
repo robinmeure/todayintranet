@@ -41,7 +41,7 @@ permission requests afterwards (see [Widgets](#widgets)).
 
 ```
 TodayIntranetWebPart.ts           creates the layout store, captures the theme, renders <Dashboard>
-components/Dashboard.tsx          grid, edit mode, add/remove, keyboard nudging, debounced persistence
+components/Dashboard.tsx          grid, edit mode, add/remove, keyboard nudging, local checkpoints and Done publishing
 components/WidgetFrame.tsx        tile chrome: icon, title, drag handle, refresh, settings flyout, footer link
 components/WidgetErrorBoundary.tsx contains a crashing widget
 components/AddWidgetPanel.tsx     widget catalogue: search, categories, permission hints
@@ -334,7 +334,7 @@ an API is the better route for something the whole site should see.
 
 - **Title** — enter **Edit dashboard**, open a widget's settings, and change **Title**. Every widget
   has this field, including Clock and widgets without other settings. The header and accessible labels
-  update as you type, and the usual autosave keeps the title for that instance. Clear the field to
+  update as you type, and the local checkpoint keeps the title for that instance. Clear the field to
   restore the widget's default name; whitespace-only titles also use the default.
 - **Refresh** — widgets that set `isRefreshable` get a refresh button; pressing it bumps
   `IWidgetContext.refreshToken`, which `useGraphData` treats as a dependency. The frame never has to
@@ -490,8 +490,10 @@ of blanking the dashboard.
 
 ## Where layouts are stored
 
-Per user, in a hidden list named **TodayIntranetLayouts** on the site hosting the page: `Title` holds
-`<dashboard id>|<user login name>` and a `LayoutJson` note column holds the layout.
+Widget settings, personal titles, placement, and layout presets are saved together as one dashboard
+document. For users who can add and edit list items, the primary store is the hidden
+**TodayIntranetLayouts** list in the SharePoint **web** hosting the page: `Title` holds
+`<dashboard id>|<user login name>` and the plain-text `LayoutJson` note column holds the layout.
 
 The **Dashboard id** is a property-pane setting that defaults to `default`, so out of the box a
 person's arrangement is per site and survives the web part being removed, re-added or moved to
@@ -500,11 +502,118 @@ the id points everyone at a fresh set of saved layouts — treat it as a deliber
 lower-cased and reduced to `a-z 0-9 . _ -`, max 50 characters, because it ends up in a list item
 title, an OData filter and a `localStorage` key.
 
-The list is created on first use, which needs Manage Lists rights — in practice a site owner opening
-the page provisions it. It is created hidden, with `ReadSecurity`/`WriteSecurity` set to 2 so users
-only ever see their own item, and `Title` is indexed: the list holds one item per user, and filtering
-an unindexed column stops working once a list passes the 5,000-item list view threshold.
+### Browser-only visitors
 
-If the list cannot be read or written (read-only visitor, missing list, throttling), the store falls
-back to `localStorage` and the dashboard shows a warning saying the arrangement is browser-local.
-Swapping persistence later is a matter of implementing `ILayoutStore`.
+**Read-only visitors keep their settings in their browser.** The web part does not grant list or
+site permissions to make those settings roam. It checks effective list permissions, not group names,
+and displays an informational explanation that settings do not follow the user to other devices.
+A returning visitor's scoped local layout takes precedence over an older readable SharePoint copy.
+Clearing browser data, changing browser profiles, or using another device does not preserve this
+browser-only arrangement.
+
+Local recovery keys include the site ID, web ID, dashboard ID, and user identity. Different sites
+on the same origin cannot overwrite each other's settings; pages sharing the same web and dashboard
+ID still share an arrangement. Committed edits are checkpointed locally immediately, while cloud
+writes happen only after the user selects **Done**. Text drafts are committed on blur or settings
+dismissal; Done closes open settings first, checkpoints their final drafts locally, and then requests
+one serialized SharePoint publish. Leaving or reloading the page without Done preserves changes in
+the scoped browser cache but does not publish them to SharePoint.
+
+A cloud-validated local layout is considered fresh for **five minutes**. Reopening it during that
+window uses the scoped browser record without making SharePoint requests. The verified list schema
+and effective storage capability are cached for **one hour**; after the layout freshness window,
+only the personal layout is re-read while that configuration cache remains valid. When the
+configuration cache expires, the list and field metadata are verified again. **Retry** always
+bypasses both freshness windows so permission or list repairs take effect immediately.
+
+Successful SharePoint reads and writes refresh the cached layout, item ID, ETag, and validation
+times. A remote layout change discovered after the freshness window replaces a clean local cache;
+a pending local draft is retained and reconciled instead. These bounded windows intentionally trade
+up to five minutes of cross-device freshness for zero SharePoint calls on repeated page loads.
+
+### Provisioning and upgrading an existing list
+
+An owner with Manage Lists rights can provision a missing list by opening the dashboard. The store
+verifies the layout field, Title index, hidden/navigation/attachment settings, and own-item access
+settings before using the list. Item ownership is based on SharePoint's **Created By** field, not
+the login text in Title. Owners and other elevated administrators are not made blind to list items;
+hiding a list is not an access-control mechanism.
+
+Title is indexed for scalable lookups but deliberately **does not enforce unique values**. SharePoint
+does not allow a unique-value field on a list where users can only view their own items. Do not try
+to enable Title uniqueness while `ReadSecurity: 2` is in force.
+
+For an existing list:
+
+1. Back it up with approved SharePoint administration tooling, retaining the complete
+   `LayoutJson`, item IDs, Titles, and author metadata. A personal dashboard export is not a list
+   backup, and a truncated spreadsheet view is not sufficient.
+2. Check for duplicate Titles. Review and reconcile any duplicates with the affected user; preserve
+   all original versions before removing records. Do not recreate everyone's items under an owner's
+   identity, because that changes own-item access.
+3. In the list settings, ensure `LayoutJson` is a **plain-text multiple-lines** field, Title is indexed,
+   and Title has **Enforce unique values disabled**. Do not replace an incompatible existing field
+   without preserving its data.
+4. Verify item-level permissions: read only items created by the user, and create/edit only the
+   user's own items (`ReadSecurity: 2`, `WriteSecurity: 2`). Keep attachments disabled, the list
+   hidden, and its Quick Launch entry disabled. Do not add write grants for visitors.
+5. Reload the dashboard or use **Retry**. Cloud writes resume only after verification passes.
+
+For a hidden list, an owner can obtain its GUID from the hosting web's
+`_api/web/lists/getByTitle('TodayIntranetLayouts')?$select=Id` endpoint, then open the hosting web's
+`_layouts/15/listedit.aspx?List={list-guid}` settings page. Follow the site's normal administrative
+approval process. Provisioning failures are surfaced, and repeated owner initialization can repair missing compatible
+configuration; it never automatically deletes duplicate records. Because SharePoint cannot provide
+an atomic unique key with own-item visibility, a simultaneous first save from two devices can create
+two records. The post-create lookup detects that race, stops cloud acknowledgement, preserves local
+recovery data, and asks for list reconciliation rather than silently choosing or deleting a record.
+
+### Recovery, concurrency, and migration
+
+The dashboard distinguishes **saved to SharePoint**, **saved in this browser only**, **pending
+synchronization**, **conflicting versions**, and **unsaved** changes. Local quota/policy failures are
+not silently ignored. If SharePoint succeeds but local checkpointing fails, the status explicitly
+says that cloud storage succeeded while browser recovery is unavailable.
+
+Cloud writes are serialized and use the saved item's ETag rather than an unconditional overwrite.
+A stale ETag, competing initial create, or divergent browser draft requires a version choice instead
+of silently replacing another edit. Browser snapshots preserve concurrent drafts, and explicit
+recovery decisions archive the versions being replaced. **Export** downloads recovery data for this
+dashboard, including preserved versions and available unsaved changes; treat the file as personal
+data, especially when widgets contain custom payloads. If browser reads are blocked, recovery can
+still export available in-memory data; both the status and downloaded JSON explicitly identify that
+partial export and explain that stored browser backups could not be read.
+
+Temporary network failures and retryable service responses receive at most **three automatic
+retries** with exponential backoff and jitter, respecting SharePoint's `Retry-After` header.
+Access-denied and configuration failures do not enter a write-retry loop. **Retry** checks capability
+and configuration again. Recovery compares the pending draft's server version, not wall-clock
+timestamps: it synchronizes only against an unchanged base, or asks the user to choose when the
+base is different or unknown. Changing a read-only user's permissions later does not silently
+upload their local changes over a different cloud version.
+
+Existing version 1 and version 2 layouts remain supported. Invalid or newer, unsupported layouts
+are preserved and editing is blocked until recovery; the starter layout never silently overwrites
+them. Export a backup before an explicit reset. If the browser cannot store recovery backups, free
+space or correct its storage policy before resetting; the web part refuses to discard the original.
+
+Old site-less browser keys are **not imported automatically**, since their originating site cannot
+be determined. When a scoped browser record is absent, the dashboard offers an explicit legacy
+import with a destination warning. The old key remains untouched. Imported layouts with an unknown
+cloud base must be reconciled before upload.
+
+### Validation and rollout
+
+Persistence regression tests use the existing Jest/Heft toolchain. `npm run build` runs tests and
+production packaging. Before deployment, validate with an owner, a normal writable user, and a
+read-only visitor in a test SharePoint web, including two tabs, two same-origin sites, blocked local
+storage, and temporary network failures. Verify real ETags, item permissions, and duplicate-create
+detection; mock HTTP tests do not establish tenant behavior.
+
+Back up existing lists before upgrading their schema. Avoid mixed old/new cloud writers during
+rollout: older clients still perform unconditional updates. Old browser keys are retained for
+migration, but older clients cannot read the new scoped recovery format. Rolling back the package
+does not downgrade or delete the new recovery snapshots.
+
+Swapping persistence later is a matter of implementing `ILayoutStore`, including its status
+subscription, explicit recovery actions, and disposal contract.

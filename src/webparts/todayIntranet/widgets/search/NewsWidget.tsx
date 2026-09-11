@@ -28,6 +28,7 @@ const SELECT_PROPERTIES: string[] = [
 ];
 const SORT_LIST: string = 'Created:descending';
 const DEFAULT_MAX_ITEMS: number = 4;
+const MAX_ITEMS_BOUNDS = { min: 1, max: 20 };
 const DEFAULT_SCOPE: SearchScope = 'siteCollection';
 
 export const NEWS_DEFAULT_VIEW: WidgetItemsView = 'cards';
@@ -52,7 +53,7 @@ function toItem(row: ISearchRow, index: number, locale: string | undefined, show
 
 export const NewsWidget: React.FunctionComponent<{ context: IWidgetContext }> = ({ context }) => {
   const scope = scopeSetting(context, DEFAULT_SCOPE);
-  const maxItems = numberSetting(context, 'maxItems', DEFAULT_MAX_ITEMS);
+  const maxItems = numberSetting(context, 'maxItems', DEFAULT_MAX_ITEMS, MAX_ITEMS_BOUNDS);
   const view = viewSetting(context, NEWS_DEFAULT_VIEW);
   const terms = typeof context.settings.terms === 'string' ? context.settings.terms : '';
   const locale = context.spContext.pageContext.cultureInfo.currentUICultureName || undefined;
@@ -100,8 +101,7 @@ export const NewsWidgetSettings: React.FunctionComponent<{ context: IWidgetConte
       settingKey="maxItems"
       label="Posts to show"
       fallback={DEFAULT_MAX_ITEMS}
-      min={1}
-      max={20}
+      {...MAX_ITEMS_BOUNDS}
     />
   </SettingsSurface>
 );

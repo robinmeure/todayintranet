@@ -16,6 +16,8 @@ import {
 const SCOPE: string = 'Calendars.ReadBasic';
 const DEFAULT_DAYS: number = 7;
 const DEFAULT_MAX_ITEMS: number = 5;
+const DAYS_BOUNDS = { min: 1, max: 30 };
+const MAX_ITEMS_BOUNDS = { min: 1, max: 20 };
 const CALENDAR_URL: string = 'https://outlook.office.com/calendar/';
 
 export const CALENDAR_LINK: IWidgetLink = { text: 'Open calendar', href: CALENDAR_URL };
@@ -79,8 +81,8 @@ function toItem(event: Event, index: number, now: Date, locale: string | undefin
 }
 
 export const CalendarWidget: React.FunctionComponent<{ context: IWidgetContext }> = ({ context }) => {
-  const days = numberSetting(context, 'days', DEFAULT_DAYS);
-  const maxItems = numberSetting(context, 'maxItems', DEFAULT_MAX_ITEMS);
+  const days = numberSetting(context, 'days', DEFAULT_DAYS, DAYS_BOUNDS);
+  const maxItems = numberSetting(context, 'maxItems', DEFAULT_MAX_ITEMS, MAX_ITEMS_BOUNDS);
   const view = viewSetting(context, CALENDAR_DEFAULT_VIEW);
   const locale = context.spContext.pageContext.cultureInfo.currentUICultureName || undefined;
 
@@ -132,14 +134,13 @@ export const CalendarWidget: React.FunctionComponent<{ context: IWidgetContext }
 
 export const CalendarWidgetSettings: React.FunctionComponent<{ context: IWidgetContext }> = ({ context }) => (
   <SettingsSurface description="Only this tile changes. Everyone keeps their own settings.">
-    <NumberSetting context={context} settingKey="days" label="Days ahead" fallback={DEFAULT_DAYS} min={1} max={30} />
+    <NumberSetting context={context} settingKey="days" label="Days ahead" fallback={DEFAULT_DAYS} {...DAYS_BOUNDS} />
     <NumberSetting
       context={context}
       settingKey="maxItems"
       label="Events to show"
       fallback={DEFAULT_MAX_ITEMS}
-      min={1}
-      max={20}
+      {...MAX_ITEMS_BOUNDS}
     />
   </SettingsSurface>
 );

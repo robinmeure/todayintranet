@@ -62,7 +62,7 @@ export const WidgetFrame: React.FunctionComponent<IWidgetFrameProps> = (props) =
   const views = definition?.supportedViews ?? [];
   const hasViewPicker = views.length > 1;
 
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     if (!isEditing) {
       setIsSettingsOpen(false);
     }

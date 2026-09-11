@@ -63,10 +63,16 @@ describe('Dashboard widget title persistence', () => {
     });
   };
 
-  const flushSave = async (): Promise<void> => {
+  const settleSave = async (): Promise<void> => {
+    await act(async () => undefined);
+  };
+
+  const loadSavedLayout = async (): Promise<IDashboardLayout | undefined> => {
+    let saved: IDashboardLayout | undefined;
     await act(async () => {
-      jest.advanceTimersByTime(800);
+      saved = await store.load();
     });
+    return saved;
   };
 
   beforeAll(() => {
@@ -75,6 +81,7 @@ describe('Dashboard widget title persistence', () => {
 
   beforeEach(async () => {
     jest.useFakeTimers();
+    window.localStorage.clear();
     mockFrames.clear();
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -88,7 +95,7 @@ describe('Dashboard widget title persistence', () => {
       ReactDom.unmountComponentAtNode(container);
     });
     container.remove();
-    window.localStorage.removeItem(`todayIntranet.layout.${scope}`);
+    window.localStorage.clear();
     jest.clearAllTimers();
     jest.useRealTimers();
   });
@@ -106,9 +113,9 @@ describe('Dashboard widget title persistence', () => {
         original.onUpdateTitle('clock-1', 'Office time');
       }
     });
-    await flushSave();
+    await settleSave();
 
-    const saved = await store.load();
+    const saved = await loadSavedLayout();
     expect(saved).toEqual({
       ...initialLayout,
       widgets: [
@@ -122,7 +129,7 @@ describe('Dashboard widget title persistence', () => {
     act(() => {
       frame('clock-1').onUpdateTitle('clock-1', 'Office time');
     });
-    await flushSave();
+    await settleSave();
     act(() => {
       ReactDom.unmountComponentAtNode(container);
     });
@@ -139,9 +146,9 @@ describe('Dashboard widget title persistence', () => {
     act(() => {
       frame('clock-2').onUpdateTitle('clock-2', '');
     });
-    await flushSave();
+    await settleSave();
 
-    const saved = await store.load();
+    const saved = await loadSavedLayout();
     expect(saved?.widgets[1]).toEqual({ ...initialLayout.widgets[1], title: '' });
     expect(saved?.widgets[0]).toEqual(initialLayout.widgets[0]);
   });

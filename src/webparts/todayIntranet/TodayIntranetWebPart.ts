@@ -76,6 +76,8 @@ export default class TodayIntranetWebPart extends BaseClientSideWebPart<ITodayIn
       this._store = new SharePointListLayoutStore({
         spHttpClient: this.context.spHttpClient,
         webAbsoluteUrl: this.context.pageContext.web.absoluteUrl,
+        siteId: this.context.pageContext.site.id.toString(),
+        webId: this.context.pageContext.web.id.toString(),
         userKey: this.context.pageContext.user.loginName,
         dashboardKey: key
       });

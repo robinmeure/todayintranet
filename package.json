@@ -19,6 +19,7 @@
     "@microsoft/sp-http": "1.23.2",
     "@microsoft/sp-lodash-subset": "1.23.2",
     "@microsoft/sp-office-ui-fabric-core": "1.23.2",
+    "@microsoft/sp-page-context": "1.23.2",
     "@microsoft/sp-property-pane": "1.23.2",
     "@microsoft/sp-webpart-base": "1.23.2",
     "adaptivecards": "^3.0.6",

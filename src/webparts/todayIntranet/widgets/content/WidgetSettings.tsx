@@ -12,9 +12,24 @@ export const VIEW_SETTING_KEY: string = 'view';
 
 /* Typed readers for the untyped settings bag every widget instance carries. */
 
-export function numberSetting(context: IWidgetContext, key: string, fallback: number): number {
-  const value: unknown = context.settings[key];
-  return typeof value === 'number' && isFinite(value) ? value : fallback;
+export interface INumberSettingBounds {
+  min: number;
+  max: number;
+}
+
+function readNumber(value: unknown, fallback: number, bounds?: INumberSettingBounds): number {
+  const number = typeof value === 'number' && isFinite(value) ? value : fallback;
+  return bounds ? Math.max(bounds.min, Math.min(bounds.max, Math.floor(number))) : number;
+}
+
+/** Optional bounds enforce the integer counts exposed by NumberSetting before requests are built. */
+export function numberSetting(
+  context: IWidgetContext,
+  key: string,
+  fallback: number,
+  bounds?: INumberSettingBounds
+): number {
+  return readNumber(context.settings[key], fallback, bounds);
 }
 
 export function booleanSetting(context: IWidgetContext, key: string, fallback: boolean): boolean {
@@ -56,17 +71,25 @@ export interface IDraftSetting {
 export function useDraftSetting(context: IWidgetContext, key: string, fallback: string): IDraftSetting {
   const stored: string = textSetting(context, key, fallback);
   const [value, setValue] = React.useState<string>(stored);
+  const draftValue = React.useRef(stored);
+  const committedValue = React.useRef(stored);
 
-  React.useEffect(() => setValue(stored), [stored]);
+  React.useEffect(() => {
+    setValue(stored);
+    draftValue.current = stored;
+    committedValue.current = stored;
+  }, [stored]);
 
   const latest = React.useRef<() => void>();
   latest.current = () => {
-    if (value !== stored) {
-      write(context, key, value);
+    if (draftValue.current !== committedValue.current) {
+      committedValue.current = draftValue.current;
+      write(context, key, draftValue.current);
     }
   };
 
-  React.useEffect(
+  // Layout cleanup runs before the dashboard's passive cleanup disposes its store.
+  React.useLayoutEffect(
     () => () => {
       if (latest.current) {
         latest.current();
@@ -77,7 +100,10 @@ export function useDraftSetting(context: IWidgetContext, key: string, fallback: 
 
   return {
     value,
-    setValue,
+    setValue: (next) => {
+      draftValue.current = next;
+      setValue(next);
+    },
     commit: () => {
       if (latest.current) {
         latest.current();
@@ -86,21 +112,19 @@ export function useDraftSetting(context: IWidgetContext, key: string, fallback: 
   };
 }
 
-export interface INumberSettingProps {
+export interface INumberSettingProps extends INumberSettingBounds {
   context: IWidgetContext;
   settingKey: string;
   label: string;
   fallback: number;
-  min: number;
-  max: number;
 }
 
 export const NumberSetting: React.FunctionComponent<INumberSettingProps> = (props) => {
   const { context, settingKey, label, fallback, min, max } = props;
-  const value: number = numberSetting(context, settingKey, fallback);
+  const value: number = numberSetting(context, settingKey, fallback, { min, max });
 
   const commit = (next: number): void => {
-    write(context, settingKey, Math.max(min, Math.min(max, next)));
+    write(context, settingKey, readNumber(next, fallback, { min, max }));
   };
 
   return (
@@ -111,7 +135,7 @@ export const NumberSetting: React.FunctionComponent<INumberSettingProps> = (prop
       step={1}
       value={String(value)}
       onValidate={(raw) => {
-        commit(parseInt(raw, 10) || fallback);
+        commit(parseInt(raw, 10));
         return undefined;
       }}
       onIncrement={() => {

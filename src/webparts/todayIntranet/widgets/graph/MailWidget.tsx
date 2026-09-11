@@ -17,6 +17,7 @@ import {
 
 const SCOPE: string = 'Mail.ReadBasic';
 const DEFAULT_MAX_ITEMS: number = 6;
+const MAX_ITEMS_BOUNDS = { min: 1, max: 20 };
 const MAIL_URL: string = 'https://outlook.office.com/mail/';
 
 export const MAIL_LINK: IWidgetLink = { text: 'Open Outlook', href: MAIL_URL };
@@ -53,7 +54,7 @@ function toItem(message: Message, index: number, locale: string | undefined): IW
 }
 
 export const MailWidget: React.FunctionComponent<{ context: IWidgetContext }> = ({ context }) => {
-  const maxItems = numberSetting(context, 'maxItems', DEFAULT_MAX_ITEMS);
+  const maxItems = numberSetting(context, 'maxItems', DEFAULT_MAX_ITEMS, MAX_ITEMS_BOUNDS);
   const unreadOnly = booleanSetting(context, 'unreadOnly', false);
   const view = viewSetting(context, MAIL_DEFAULT_VIEW);
   const locale = context.spContext.pageContext.cultureInfo.currentUICultureName || undefined;
@@ -106,8 +107,7 @@ export const MailWidgetSettings: React.FunctionComponent<{ context: IWidgetConte
       settingKey="maxItems"
       label="Messages to show"
       fallback={DEFAULT_MAX_ITEMS}
-      min={1}
-      max={20}
+      {...MAX_ITEMS_BOUNDS}
     />
     <ToggleSetting context={context} settingKey="unreadOnly" label="Unread only" fallback={false} />
   </SettingsSurface>
