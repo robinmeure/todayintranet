@@ -1,6 +1,12 @@
 import * as React from 'react';
 import { IWidgetDataState, IWidgetEmptyState } from './IWidgetContent';
-import { WidgetEmpty, WidgetErrorMessage, WidgetLoading, IWidgetLoadingProps } from './WidgetStates';
+import {
+  WidgetEmpty,
+  WidgetErrorMessage,
+  WidgetLoading,
+  WidgetStaleNotice,
+  IWidgetLoadingProps
+} from './WidgetStates';
 import styles from './WidgetContent.module.scss';
 
 export interface IWidgetViewProps<T> {
@@ -35,13 +41,20 @@ export function WidgetView<T>(props: IWidgetViewProps<T>): React.ReactElement {
   }
 
   const hasNothing: boolean = isEmpty ? isEmpty(data) : Array.isArray(data) && data.length === 0;
-  if (hasNothing) {
-    return <WidgetEmpty {...empty} />;
-  }
+  const content: React.ReactElement = hasNothing
+    ? <WidgetEmpty {...empty} />
+    : children(data);
+  const retainedContent = state.refreshError
+    ? (
+        <div className={styles.stale}>
+          <WidgetStaleNotice lastUpdated={state.lastUpdated} onRetry={state.reload} />
+          {content}
+        </div>
+      )
+    : content;
 
-  const content: React.ReactElement = children(data);
   if (!state.isRefreshing) {
-    return content;
+    return retainedContent;
   }
 
   // Re-reading data the user is already looking at: keep it, and say it is happening
@@ -49,7 +62,7 @@ export function WidgetView<T>(props: IWidgetViewProps<T>): React.ReactElement {
   return (
     <div className={styles.refreshing} aria-busy={true}>
       <div className={styles.refreshingBar} aria-hidden={true} />
-      {content}
+      {retainedContent}
     </div>
   );
 }

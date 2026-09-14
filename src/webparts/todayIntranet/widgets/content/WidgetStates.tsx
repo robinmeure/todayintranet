@@ -81,3 +81,33 @@ export const WidgetErrorMessage: React.FunctionComponent<IWidgetErrorProps> = ({
     )}
   </MessageBar>
 );
+
+export interface IWidgetStaleNoticeProps {
+  lastUpdated?: number;
+  onRetry?: () => void;
+}
+
+/** Quietly explains why retained content may be out of date. */
+export const WidgetStaleNotice: React.FunctionComponent<IWidgetStaleNoticeProps> = ({
+  lastUpdated,
+  onRetry
+}) => {
+  const time = lastUpdated === undefined
+    ? undefined
+    : new Date(lastUpdated).toLocaleTimeString(undefined, {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+  return (
+    <div className={styles.staleNotice} role="status" aria-live="polite">
+      Could not refresh. {time ? `Showing data from ${time}.` : 'Showing earlier data.'}
+      {onRetry && (
+        <>
+          {' '}
+          <Link onClick={onRetry}>Try again</Link>
+        </>
+      )}
+    </div>
+  );
+};

@@ -105,6 +105,10 @@ export interface IWidgetDataState<T> {
   error?: IWidgetError;
   /** True while data already on screen is being re-read, e.g. after a refresh. */
   isRefreshing?: boolean;
+  /** Time of the last successful service response. */
+  lastUpdated?: number;
+  /** A refresh failed, but retained data is still safe to show. */
+  refreshError?: IWidgetError;
   /** Re-runs the read. Absent for widgets whose data cannot be re-read. */
   reload?(): void;
 }

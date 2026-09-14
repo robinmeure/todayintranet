@@ -1,6 +1,7 @@
 import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { IWidgetError } from '../content';
+import { WidgetDataErrorDisposition } from '../data/WidgetDataError';
 
 /** One search hit, as a flat bag of the managed properties that were selected. */
 export interface ISearchRow {
@@ -67,7 +68,12 @@ async function toSearchError(response: SPHttpClientResponse): Promise<IWidgetErr
       message: 'You do not have access to search results on this tenant.'
     };
   }
-  if (response.status === 429 || response.status === 503) {
+  if (
+    response.status === 429 ||
+    response.status === 502 ||
+    response.status === 503 ||
+    response.status === 504
+  ) {
     return { message: 'Search is busy right now. Try again in a moment.' };
   }
 
@@ -90,13 +96,27 @@ async function toSearchError(response: SPHttpClientResponse): Promise<IWidgetErr
 /** Thrown by `runSearchQuery` so callers can surface the reason unchanged. */
 export class SearchError extends Error {
   public readonly widgetError: IWidgetError;
+  public readonly statusCode: number;
 
-  constructor(widgetError: IWidgetError) {
+  constructor(widgetError: IWidgetError, statusCode: number) {
     super(widgetError.message);
     this.widgetError = widgetError;
+    this.statusCode = statusCode;
     // Required for `instanceof` to survive the ES5 target.
     Object.setPrototypeOf(this, SearchError.prototype);
   }
+}
+
+export function classifySearchDataError(error: unknown): WidgetDataErrorDisposition {
+  if (!(error instanceof SearchError)) {
+    return 'invalidate';
+  }
+  return error.statusCode === 429 ||
+    error.statusCode === 502 ||
+    error.statusCode === 503 ||
+    error.statusCode === 504
+    ? 'stale'
+    : 'invalidate';
 }
 
 /** Turns whatever a failed query threw into something worth showing a user. */
@@ -122,7 +142,7 @@ export async function runSearchQuery(
     headers: JSON_HEADERS
   });
   if (!response.ok) {
-    throw new SearchError(await toSearchError(response));
+    throw new SearchError(await toSearchError(response), response.status);
   }
 
   const payload = (await response.json()) as ISearchPayload;

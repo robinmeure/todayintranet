@@ -49,8 +49,9 @@ components/LayoutPresetPanel.tsx  layout picker: column presets and tile height
 widgets/IWidget.ts                the widget contract
 widgets/WidgetRegistry.tsx        every widget the catalogue offers
 widgets/content/                  how widgets describe what they show (see below)
-widgets/graph/useGraphData.ts     Graph query hook with consent-aware error handling
-widgets/search/                   SharePoint search: service, hook and the query builder UI
+widgets/data/WidgetDataCache.ts   bounded in-memory TTL cache and in-flight request deduplication
+widgets/graph/useGraphData.ts     cached Graph query hook with consent-aware error handling
+widgets/search/                   cached SharePoint search service, hook and query builder UI
 model/IDashboardLayout.ts         persisted layout shape
 model/LayoutPresets.ts            layout presets and the code that pours widgets into them
 services/*LayoutStore.ts          persistence
@@ -139,6 +140,37 @@ return (
 | Refreshing | The data it already had, with a progress bar — a refresh never blanks a tile |
 | Empty | An icon, a sentence and an optional way out ("Open Outlook") |
 | Error | A message bar, with **Try again** unless an administrator has to act first |
+
+### Widget data caching
+
+Graph and SharePoint Search responses use one module-level, in-memory cache shared by every instance
+of this web part on the page. Identical requests share the same in-flight promise, so duplicate tiles
+produce one network request. Successful empty responses are cached too. Cache keys include tenant,
+user, site, web, data source, and normalized request parameters, so data cannot cross identities or
+settings.
+
+Freshness is deliberately short and source-specific:
+
+| Data | Fresh for |
+| --- | --- |
+| Mail | 3 minutes |
+| Calendar | 5 minutes |
+| Tasks | 10 minutes |
+| SharePoint Search and news | 15 minutes |
+
+Expired entries are re-read. If that re-read fails because of a recognized transient throttling or
+service error, the tile continues to show its last cached result for at most 30 minutes beyond the
+freshness window. A compact, timestamped notice says that refresh failed; a failed refresh never
+extends the entry's lifetime. Authorization, consent, invalid query, malformed response, and unknown
+failures invalidate that request's entry and are surfaced normally. The tile refresh button,
+**Try again**, and the Search settings preview's **Run again** action bypass a fresh entry, while
+simultaneous refreshes remain deduplicated.
+
+The cache is memory-only: it survives component remounts and SharePoint client-side navigation while
+the bundle remains loaded, but not a full page refresh or browser restart. It is capped at 100
+completed entries, enforcing that limit as concurrent responses arrive, and prunes entries beyond
+their stale fallback window. No mail, calendar, task, or security-trimmed search response is written
+to `localStorage` or `sessionStorage`.
 
 `IWidgetListItem` carries a **tone** (`neutral`, `accent`, `success`, `warning`, `danger`) rather
 than a colour, so emphasis means the same thing on every tile: a meeting in progress, an overdue

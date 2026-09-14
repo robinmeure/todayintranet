@@ -5,8 +5,14 @@ import { DefaultButton } from '@fluentui/react/lib/Button';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { Link } from '@fluentui/react/lib/Link';
 import { IWidgetContext } from '../IWidget';
-import { IWidgetError, WidgetErrorMessage, useDraftSetting } from '../content';
-import { ISearchResults, plainSummary, runSearchQuery, toWidgetError } from './SearchService';
+import {
+  IWidgetError,
+  WidgetErrorMessage,
+  WidgetStaleNotice,
+  useDraftSetting
+} from '../content';
+import { ISearchResults, plainSummary, toWidgetError } from './SearchService';
+import { getSearchData } from './cachedSearchData';
 import {
   SCOPE_SETTING_KEY,
   SEARCH_SCOPES,
@@ -25,6 +31,8 @@ interface IPreviewState {
   status: 'idle' | 'running' | 'done' | 'error';
   results?: ISearchResults;
   error?: IWidgetError;
+  lastUpdated?: number;
+  refreshError?: IWidgetError;
 }
 
 export interface ISearchQuerySettingProps {
@@ -69,6 +77,7 @@ export const SearchQuerySetting: React.FunctionComponent<ISearchQuerySettingProp
 
   const [runToken, setRunToken] = React.useState<number>(0);
   const [preview, setPreview] = React.useState<IPreviewState>({ status: 'idle' });
+  const previousRunToken = React.useRef<number>(runToken);
 
   const query = buildQuery({ base, scope, terms: terms.value, spContext });
   // Mirrors what the widget will do, so the preview never shows results the tile
@@ -84,18 +93,27 @@ export const SearchQuerySetting: React.FunctionComponent<ISearchQuerySettingProp
     }
 
     let cancelled = false;
+    const bypassCache = previousRunToken.current !== runToken;
+    previousRunToken.current = runToken;
     setPreview((current) => ({ ...current, status: 'running' }));
 
     const timer = window.setTimeout(() => {
-      runSearchQuery(spContext, {
+      getSearchData(context, {
         queryText: query,
         selectProperties,
         rowLimit: PREVIEW_ROWS,
         sortList
-      })
-        .then((results) => {
+      }, bypassCache)
+        .then((response) => {
           if (!cancelled) {
-            setPreview({ status: 'done', results });
+            setPreview({
+              status: 'done',
+              results: response.data,
+              lastUpdated: response.fetchedAt,
+              refreshError: response.refreshError
+                ? toWidgetError(response.refreshError)
+                : undefined
+            });
           }
         })
         .catch((error: unknown) => {
@@ -174,6 +192,12 @@ export const SearchQuerySetting: React.FunctionComponent<ISearchQuerySettingProp
 
         {preview.status === 'done' && preview.results && (
           <>
+            {preview.refreshError && (
+              <WidgetStaleNotice
+                lastUpdated={preview.lastUpdated}
+                onRetry={() => setRunToken((token) => token + 1)}
+              />
+            )}
             <div className={styles.count}>
               {preview.results.totalRows === 0
                 ? 'No results. Widen the scope or change the terms.'

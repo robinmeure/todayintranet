@@ -147,6 +147,20 @@
   position: relative;
 }
 
+.stale {
+  display: flex;
+  flex-direction: column;
+  gap: visual.$space-sm;
+}
+
+.staleNotice {
+  @include visual.meta;
+  padding: visual.$space-xs visual.$space-sm;
+  border-inline-start: 2px solid '[theme:yellowDark, default:#d29200]';
+  color: '[theme:neutralSecondary, default:#605e5c]';
+  background: '[theme:neutralLighterAlt, default:#faf9f8]';
+}
+
 .refreshingBar {
   position: sticky;
   top: 0;

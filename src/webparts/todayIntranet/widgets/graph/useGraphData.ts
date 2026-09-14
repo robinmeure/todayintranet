@@ -1,7 +1,14 @@
 import * as React from 'react';
-import { MSGraphClientV3 } from '@microsoft/sp-http';
+import type { MSGraphClientV3 } from '@microsoft/sp-http';
 import { IWidgetContext } from '../IWidget';
 import { IWidgetDataState, IWidgetError } from '../content';
+import { getCachedWidgetData, widgetDataCacheKey } from '../data/WidgetDataCache';
+import {
+  classifyGraphDataError,
+  isWidgetDataAuthorizationError,
+  widgetDataErrorCodes,
+  widgetDataErrorStatus
+} from '../data/WidgetDataError';
 
 /** What `useGraphData` returns: the shared data state, always with a retry. */
 export interface IGraphDataResult<T> extends IWidgetDataState<T> {
@@ -9,24 +16,36 @@ export interface IGraphDataResult<T> extends IWidgetDataState<T> {
 }
 
 interface IGraphErrorShape {
-  statusCode?: number;
   code?: string;
   message?: string;
 }
 
+const DEFAULT_GRAPH_TTL_MS: number = 5 * 60 * 1000;
+const GRAPH_TTL_BY_SCOPE: Record<string, number> = {
+  'Mail.ReadBasic': 3 * 60 * 1000,
+  'Calendars.ReadBasic': 5 * 60 * 1000,
+  'Tasks.Read': 10 * 60 * 1000
+};
+
 function toGraphError(error: unknown, scope: string): IWidgetError {
   const shape = (error ?? {}) as IGraphErrorShape;
-  const status = shape.statusCode;
+  const status = widgetDataErrorStatus(error);
+  const codes = widgetDataErrorCodes(error);
 
-  if (status === 401 || status === 403 || shape.code === 'accessDenied') {
+  if (isWidgetDataAuthorizationError(error)) {
+    const isAuthenticationFailure =
+      status === 401 ||
+      codes.indexOf('invalidauthenticationtoken') >= 0 ||
+      codes.indexOf('unauthenticated') >= 0;
     return {
-      isActionRequired: true,
-      message:
-        `This widget needs the Microsoft Graph "${scope}" permission. ` +
-        'A tenant administrator has to approve it in the SharePoint admin center under Advanced > API access.'
+      isActionRequired: !isAuthenticationFailure,
+      message: isAuthenticationFailure
+        ? 'Your Microsoft 365 session could not be validated. Refresh the page or sign in again.'
+        : `This widget needs the Microsoft Graph "${scope}" permission. ` +
+          'A tenant administrator has to approve it in the SharePoint admin center under Advanced > API access.'
     };
   }
-  if (status === 429 || status === 503) {
+  if (status === 429 || status === 500 || status === 502 || status === 503 || status === 504) {
     return { message: 'Microsoft 365 is busy right now. Try again in a moment.' };
   }
   return { message: shape.message || 'Could not load data from Microsoft 365.' };
@@ -48,6 +67,8 @@ export function useGraphData<T>(
   const refreshToken = context.refreshToken;
   const [result, setResult] = React.useState<IWidgetDataState<T>>({ status: 'loading' });
   const [reloadToken, setReloadToken] = React.useState<number>(0);
+  const previousReloadToken = React.useRef<number>(reloadToken);
+  const previousRefreshToken = React.useRef<number>(refreshToken);
 
   // Keep the latest fetcher out of the effect dependencies so callers can pass
   // an inline arrow function without re-querying on every render.
@@ -56,18 +77,40 @@ export function useGraphData<T>(
 
   React.useEffect(() => {
     let cancelled = false;
+    const bypassCache =
+      previousReloadToken.current !== reloadToken ||
+      previousRefreshToken.current !== refreshToken;
+    previousReloadToken.current = reloadToken;
+    previousRefreshToken.current = refreshToken;
+    const requestFetcher = fetcherRef.current;
+    const requestKey = widgetDataCacheKey(context, `graph:${scope}`, deps);
+
     // Data already on screen stays there and is marked stale: re-reading after a
     // refresh or a settings change should not blank a tile the user is reading.
     setResult((previous) =>
       previous.status === 'ready' ? { ...previous, isRefreshing: true } : { status: 'loading' }
     );
 
-    spContext.msGraphClientFactory
-      .getClient('3')
-      .then((client) => fetcherRef.current(client))
-      .then((data) => {
+    getCachedWidgetData({
+      key: requestKey,
+      ttlMilliseconds: GRAPH_TTL_BY_SCOPE[scope] ?? DEFAULT_GRAPH_TTL_MS,
+      bypassCache,
+      classifyError: classifyGraphDataError,
+      load: () =>
+        spContext.msGraphClientFactory
+          .getClient('3')
+          .then((client) => requestFetcher(client))
+    })
+      .then((response) => {
         if (!cancelled) {
-          setResult({ status: 'ready', data });
+          setResult({
+            status: 'ready',
+            data: response.data,
+            lastUpdated: response.fetchedAt,
+            refreshError: response.refreshError
+              ? toGraphError(response.refreshError, scope)
+              : undefined
+          });
         }
       })
       .catch((error: unknown) => {
