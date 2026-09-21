@@ -6,6 +6,8 @@ jest.mock('./WidgetFrame.module.scss', () => ({
   title: 'widget-title',
   header: 'header',
   body: 'body',
+  bodyBare: 'body-bare',
+  experienceLink: 'experience-link',
   actions: 'actions',
   settingsCallout: 'settings-callout'
 }), { virtual: true });
@@ -16,7 +18,7 @@ import * as ReactDom from 'react-dom';
 import { act, Simulate } from 'react-dom/test-utils';
 import { initializeIcons } from '@fluentui/react/lib/Icons';
 import type { WebPartContext } from '@microsoft/sp-webpart-base';
-import { WidgetFrame } from './WidgetFrame';
+import { INudge, WidgetFrame } from './WidgetFrame';
 import { IWidgetInstance } from '../model/IDashboardLayout';
 import { IWidgetDefinition, IWidgetHostContext } from '../widgets/IWidget';
 import { WidgetRegistry } from '../widgets/WidgetRegistry';
@@ -34,6 +36,7 @@ const clock: IWidgetDefinition = {
 const onUpdateTitle = jest.fn<void, [string, string]>();
 const onUpdateSettings = jest.fn<void, [Record<string, unknown>]>();
 const onRemove = jest.fn<void, [string]>();
+const onNudge = jest.fn<void, [string, INudge]>();
 const spContext = new (jest.fn<WebPartContext, []>())();
 
 interface ITestWidgetProps {
@@ -64,7 +67,7 @@ const TestWidget: React.FunctionComponent<ITestWidgetProps> = ({
       widgetContext={context}
       isEditing={isEditing}
       onRemove={onRemove}
-      onNudge={() => undefined}
+      onNudge={onNudge}
       onUpdateTitle={(instanceId, next) => {
         onUpdateTitle(instanceId, next);
         setInstance((current) => ({ ...current, title: next }));
@@ -180,6 +183,79 @@ describe('WidgetFrame titles', () => {
 
     expect(container.querySelector('.widget-title')?.textContent).toBe('Office time');
     expect(container.querySelectorAll('button')).toHaveLength(0);
+  });
+
+  it('renders the title as a heading above the content surface, without a decorative title icon', () => {
+    act(() => { ReactDom.render(<TestWidget isEditing={false} />, container); });
+    expect(container.querySelector('.header h3')?.textContent).toBe('Clock');
+    expect(container.querySelector('.body h3')).toBeNull();
+    expect(container.querySelector('.header [data-icon-name="Clock"]')).toBeNull();
+    expect(container.querySelector('.body')?.classList.contains('body-bare')).toBe(false);
+  });
+
+  it('places an existing footerLink beside the heading, without duplicating it below the content', () => {
+    jest.mocked(WidgetRegistry.get).mockReturnValue({
+      ...clock, footerLink: { text: 'Open clock', href: 'https://example.test/clock' }
+    });
+    act(() => { ReactDom.render(<TestWidget isEditing={false} />, container); });
+    const link = container.querySelector('.header a');
+    expect(link?.textContent).toContain('Open clock');
+    expect(link?.getAttribute('href')).toBe('https://example.test/clock');
+    expect(link?.getAttribute('target')).toBe('_blank');
+    expect(link?.getAttribute('rel')).toBe('noreferrer');
+    expect(container.querySelectorAll('a[href="https://example.test/clock"]')).toHaveLength(1);
+    expect(container.querySelector('.body a')).toBeNull();
+  });
+
+  it('resolves dynamic links using the current context and keeps refresh working', () => {
+    jest.mocked(WidgetRegistry.get).mockReturnValue({
+      ...clock,
+      isRefreshable: true,
+      footerLink: (context) => context.refreshToken
+        ? { text: 'Updated destination', href: `https://example.test/${context.instanceId}` } : undefined,
+      render: (context) => <span>Refresh {context.refreshToken}</span>
+    });
+    act(() => { ReactDom.render(<TestWidget isEditing={false} />, container); });
+    expect(container.querySelector('.experience-link')).toBeNull();
+    expect(container.querySelector('.body')?.textContent).toBe('Refresh 0');
+    act(() => { Simulate.click(button('Refresh Clock')); });
+    expect(container.querySelector('.body')?.textContent).toBe('Refresh 1');
+    expect(container.querySelector('.experience-link')?.getAttribute('href')).toBe('https://example.test/clock-1');
+    expect(onUpdateSettings).not.toHaveBeenCalled();
+  });
+
+  it('allows a definition to supply its own content surfaces', () => {
+    jest.mocked(WidgetRegistry.get).mockReturnValue({ ...clock, contentSurface: 'none' });
+    act(() => { ReactDom.render(<TestWidget isEditing={false} />, container); });
+    expect(container.querySelector('.body-bare')?.textContent).toBe('09:41');
+    expect(container.querySelector('.header h3')?.textContent).toBe('Clock');
+  });
+
+  it('preserves keyboard move/resize and removal without treating action keys as movement', () => {
+    act(() => { ReactDom.render(<TestWidget />, container); });
+    const header = container.querySelector<HTMLElement>('.header');
+    if (!header) { throw new Error('Missing widget header.'); }
+    expect(header.classList.contains('widget-drag-handle')).toBe(true);
+    expect(header.tabIndex).toBe(0);
+    act(() => {
+      Simulate.keyDown(header, { key: 'ArrowRight' });
+      Simulate.keyDown(header, { key: 'ArrowDown', shiftKey: true });
+      Simulate.keyDown(button('Clock settings'), { key: 'ArrowRight' });
+    });
+    expect(onNudge.mock.calls).toEqual([['clock-1', { dx: 1 }], ['clock-1', { dh: 1 }]]);
+    act(() => { Simulate.click(button('Remove Clock')); });
+    expect(onRemove).toHaveBeenCalledWith('clock-1');
+  });
+
+  it('closes settings and removes edit affordances when leaving edit mode', () => {
+    act(() => { ReactDom.render(<TestWidget />, container); });
+    openSettings('Clock settings', 'Clock');
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+    act(() => { ReactDom.render(<TestWidget isEditing={false} />, container); });
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(container.querySelector('.widget-drag-handle')).toBeNull();
+    expect(container.querySelectorAll('button')).toHaveLength(0);
+    expect(container.querySelector('.header')?.getAttribute('tabindex')).toBeNull();
   });
 
   it('renames only the selected instance of a widget type', () => {

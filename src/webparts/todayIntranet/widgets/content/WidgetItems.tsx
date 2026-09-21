@@ -4,6 +4,7 @@ import { WidgetList } from './WidgetList';
 import { WidgetCards } from './WidgetCards';
 import { WidgetAdaptiveCard } from './WidgetAdaptiveCard';
 import { itemsToAdaptiveCard } from './toAdaptiveCard';
+import { WidgetAgenda, WidgetLinkTiles } from './WidgetCollections';
 
 export interface IWidgetItemsProps {
   items: IWidgetListItem[];
@@ -20,6 +21,10 @@ export interface IWidgetItemsProps {
  */
 export const WidgetItems: React.FunctionComponent<IWidgetItemsProps> = ({ items, view, ariaLabel }) => {
   switch (view) {
+    case 'agenda':
+      return <WidgetAgenda items={items} ariaLabel={ariaLabel} />;
+    case 'links':
+      return <WidgetLinkTiles items={items} ariaLabel={ariaLabel} />;
     case 'compact':
       return <WidgetList items={items} density="compact" ariaLabel={ariaLabel} />;
     case 'cards':

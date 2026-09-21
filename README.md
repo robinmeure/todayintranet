@@ -1,8 +1,9 @@
 # Today intranet
 
-A full-width SharePoint Framework (SPFx) web part that hosts a grid of widgets. Visitors switch the
-dashboard into **edit mode from the page itself** — no SPFx page editing, no property pane — to add,
-move, resize and remove widgets. Each person's arrangement is saved for them personally.
+A SharePoint Framework (SPFx) dashboard that runs as a full-width SharePoint web part, a Microsoft
+Teams personal app, or a Teams channel tab. Visitors switch the dashboard into **edit mode from the
+app itself** — no SPFx page editing or property pane required — to add, move, resize and remove
+widgets. Each person's arrangement is saved for them personally.
 
 Built on SPFx **1.23.2** with the Heft toolchain (gulp is no longer used), React 17 and Fluent UI v8.
 
@@ -13,6 +14,13 @@ widget views, settings, and layout editing. Click the screenshot below to open t
 
 The recording and its extracted screenshots show an earlier build. The current shared styling is
 described under [Visual style](#visual-style).
+
+**Presentation:** open [`docs/presentation/index.html`](docs/presentation/index.html) in a browser
+for a product tour, technical architecture, and a custom-widget walkthrough. The deck uses local
+HTML, CSS, JavaScript and current UI screenshots; no server or install is needed. Use arrow keys
+to navigate, **N** for speaker notes and sources, **O** for the slide overview, or **Print / PDF**
+to export all slides. Keep the presentation folder together when sharing; repository source links
+require the surrounding checkout.
 
 ## Getting started
 
@@ -33,16 +41,46 @@ Useful Heft actions (old gulp equivalents in brackets): `build` [build + bundle]
 `package-solution` [package-solution], `clean` [clean], `dev-deploy` (new — pushes built assets to a
 test CDN), `trust-dev-cert`, `untrust-dev-cert`. `--production` replaces the old `--ship`.
 
-Deploy `sharepoint/solution/todayintranet.sppkg` to the tenant app catalog. `skipFeatureDeployment`
-is on, so the web part is available on every site once the package is approved. Approve the Graph
-permission requests afterwards (see [Widgets](#widgets)).
+The production package is written to `sharepoint/solution/todayintranet.sppkg`. Deploy it to the
+**tenant** app catalog. `skipFeatureDeployment` is on, so the web part is available on every site
+once the package is approved. Approve the Graph permission requests afterwards (see
+[Widgets](#widgets)).
+
+### Microsoft Teams
+
+The component manifest exposes the dashboard as both a `TeamsPersonalApp` and a `TeamsTab`. The
+`teams` folder contains the required 192×192 color icon and 32×32 outline icon, named after the web
+part component id. SharePoint uses those files and the component manifest to generate the Teams app
+package automatically.
+
+To publish both Teams experiences:
+
+1. Run `npm run build` and upload `sharepoint/solution/todayintranet.sppkg` to the **SharePoint
+   tenant app catalog**. A site collection app catalog cannot publish the generated app to Teams.
+2. Select the package in the tenant app catalog and choose **Add to Teams**. In older app catalog
+   experiences this action is named **Sync to Teams**.
+3. In Teams, open **Apps > Built for your org**, find **Today intranet**, and add it to the personal
+   app rail.
+4. To use it in a team, open a channel, select **+** to add a tab, choose **Today intranet**, and
+   save the tab configuration.
+
+Teams can take several minutes to refresh its organization app catalog. If synchronization reports
+that the app already exists, remove the previous **Today intranet** package from the Teams admin
+center and run **Add to Teams** again. Graph-backed widgets still require the API approvals described
+under [Widgets](#widgets).
+
+Personal apps do not expose the SPFx property pane. Dashboard arrangement and widget settings remain
+available because they are edited inside the dashboard. The personal app stores layouts in the
+SharePoint web that hosts the generated Teams app; a channel tab stores them in that team's
+SharePoint web. Layouts therefore remain personal but are scoped to the relevant SharePoint web and
+dashboard id.
 
 ## How the dashboard fits together
 
 ```
 TodayIntranetWebPart.ts           creates the layout store, captures the theme, renders <Dashboard>
 components/Dashboard.tsx          grid, edit mode, add/remove, keyboard nudging, local checkpoints and Done publishing
-components/WidgetFrame.tsx        tile chrome: icon, title, drag handle, refresh, settings flyout, footer link
+components/WidgetFrame.tsx        tile chrome: heading, experience link, content surface, drag handle, refresh, settings
 components/WidgetErrorBoundary.tsx contains a crashing widget
 components/AddWidgetPanel.tsx     widget catalogue: search, categories, permission hints
 components/LayoutPresetPanel.tsx  layout picker: column presets and tile height
@@ -107,6 +145,8 @@ widgets/content/WidgetView.tsx     one data state -> skeleton, error, empty stat
 widgets/content/WidgetItems.tsx    draws a collection in whichever view the tile is set to
 widgets/content/WidgetList.tsx     the list view, comfortable or compact
 widgets/content/WidgetCards.tsx    the cards and gallery views
+widgets/content/WidgetCollections.tsx  shared agenda and shortcut-tile views
+widgets/content/WidgetCollectionControls.tsx  date navigation, search and pagination
 widgets/content/WidgetAdaptiveCard.tsx  the Adaptive Card renderer, themed from the site
 widgets/content/toAdaptiveCard.ts  turns ordinary widget items into an Adaptive Card payload
 widgets/content/WidgetStat.tsx     a single headline figure
@@ -189,9 +229,17 @@ saved per tile — one person's inbox can be a compact list while another's is a
 | Cards | Each item on its own card, with a tone-coloured edge |
 | Gallery | Those cards flowed into a responsive grid |
 | Adaptive card | The items rendered as a real Adaptive Card, themed from the site |
+| Agenda (opt-in) | Leading status tiles, event details and separately labelled action links |
+| Link tiles (opt-in) | Rounded shortcut cards with icons, badges and descriptions |
 
 Widgets never choose a view themselves — they read `viewSetting(context, defaultView)` and hand the
 items to `WidgetItems`, which does the rest.
+
+`ALL_ITEM_VIEWS` remains the five general-purpose views. A widget explicitly opts into specialized
+views in its definition: Calendar offers Agenda plus the five existing views; My links offers Link
+tiles plus those same views. Previously saved calendar view choices still work. Status tiles and
+action links use the shared `IWidgetListItem.leadingLabel` and `actions` fields, and badges may include
+an `iconName`. The standard semantic tones are shared by all renderers.
 
 #### The same items, five ways
 
@@ -373,8 +421,12 @@ an API is the better route for something the whole site should see.
   know where the data came from.
 - **Quiet actions** — tile buttons fade in on hover or keyboard focus, and stay visible in edit mode
   and on touch screens, so a full dashboard does not read as a wall of icons.
-- **Footer link** — a definition's `footerLink` becomes the tile's "Open calendar" style link.
-- Each tile is a labelled region, so screen reader users can jump between widgets.
+- **Experience link** — a definition's `footerLink` appears at the top right beside the title,
+  not in a separate footer. Static and context-resolved links still use the same definition contract;
+  the property name is retained for compatibility.
+- **Content surface** — content sits on a rounded, borderless card below the heading. Definitions
+  can set `contentSurface: 'none'` when shared content already provides its own surfaces (My links).
+- Each tile is a labelled region with a heading, so screen reader users can jump between widgets.
 
 Custom titles live in the optional `IWidgetInstance.title` field, separate from widget-owned
 `settings`. Renaming one tile does not rename other instances or its catalogue entry. Existing
@@ -382,9 +434,12 @@ layouts without a title continue to use the registered name, and changing layout
 
 ### Visual style
 
-The shared surfaces use a restrained SharePoint-native style: neutral backgrounds, soft borders,
-modest rounding, and quiet elevation. A whole widget does not lift on hover as though it were a link;
-interactive items and controls have their own hover and focus feedback.
+The dashboard uses a soft neutral background, with bold headings outside white, rounded content
+surfaces. The outer widget has no border, shadow or decorative title icon; catalogue icons remain.
+My links exposes its separate search surface and shortcut cards rather than wrapping them in another
+white panel. Edit mode retains a dashed outline and drag handle. Theme tokens adapt these treatments
+to the site theme, and forced-colors mode restores visible surface borders. A whole widget does not
+lift on hover as though it were a link; interactive items and controls keep their hover/focus feedback.
 
 Native surfaces share [a small Sass vocabulary](src/webparts/todayIntranet/styles/_widgetVisuals.scss):
 
@@ -392,6 +447,8 @@ Native surfaces share [a small Sass vocabulary](src/webparts/todayIntranet/style
 | --- | --- |
 | Spacing | 4, 8, 12, and 16px steps; existing grid gaps and saved tile sizes are unchanged |
 | Body text | 14px with a 20px line height |
+| Widget headings | 20px with a 28px line height, bold, above the content |
+| Content surfaces | 16px rounding and padding by default, without outer elevation |
 | Secondary metadata | 12px with a 16px line height |
 | Tile actions | 32px targets, with space reserved even when the actions are hidden |
 | Compact view | Tighter row padding and text gaps, without hiding fields or changing item limits |
@@ -477,9 +534,10 @@ Result titles are redacted.*
 
 | Type key | Widget | Graph permission |
 | --- | --- | --- |
-| `m365.calendar` | Calendar — upcoming events, configurable days ahead | `Calendars.ReadBasic` |
+| `m365.calendar` | My calendar — Today, Tomorrow, Upcoming and custom dates | `Calendars.ReadBasic` |
 | `m365.mail` | My mail — inbox, optional unread-only | `Mail.ReadBasic` |
 | `m365.tasks` | My tasks — open Microsoft To Do items | `Tasks.Read` |
+| `custom.myLinks` | My links — configurable HTTPS shortcuts, search and pagination | — |
 | `sp.news` | News — news posts from a site, a hub, or everywhere | — |
 | `sp.search` | Search results — any SharePoint search query | — |
 | `card.adaptive` | Adaptive card — renders a payload from the tile's settings | — |
@@ -498,6 +556,66 @@ permissions to the tenant-wide SharePoint Online Client Extensibility principal,
 solution alone, so the widgets ask only for the metadata they render — never message or event
 bodies and attachments.
 
+### Calendar behavior
+
+Agenda is the default presentation; the original List, Compact, Cards, Gallery and Adaptive card
+views remain available in the host's settings flyout. Navigation is temporary UI state, not a saved
+dashboard change: each visit starts on Today. Existing `calendarRange` / `selectedDate` settings from
+the initial implementation are no longer used; saved `days`, `maxItems` and `view` settings remain.
+
+The native date input retains its picker trigger. Today and Tomorrow keep the input and query date
+aligned; Upcoming covers the configured number of local calendar days starting today. Query bounds
+use local midnight rather than fixed 24-hour offsets, including daylight-saving changes. Graph
+responses are requested in UTC and converted to local display time.
+
+The reader follows all result pages for the selected range. Cancelled events are excluded; completed
+events are excluded from current/future ranges **before** limiting the visible rows. Selecting a past
+date still shows historical appointments. Badges update every 15 seconds and on focus/visibility
+changes without a request on every tick. The data refreshes on five-minute boundaries and when the
+date range changes; Sync bypasses the current cached result. A same-range refresh keeps the shared
+refresh/stale UI, while changing dates never shows the old date's meetings under a new date label.
+
+Join is offered only when an online-meeting URL is available, with an accessible meeting-specific
+label even at narrow widths. Details opens the event in Outlook. No Teams Chat or overflow actions
+are fabricated when the required destination or action is unavailable.
+
+### Configuring My links
+
+Unconfigured instances show six sample links: Microsoft Learn, Microsoft Support, MDN Web Docs,
+GitHub Docs, Stack Overflow and Wikipedia. Their descriptions explicitly identify them as samples,
+and none carry VPN badges. These defaults are also shown in the JSON editor, so you can replace
+them easily; they are not automatically written to your saved settings. Existing saved links are
+unchanged, and a saved empty array (`[]`) still shows setup guidance rather than restoring samples.
+
+In **Edit dashboard > My links settings**, edit the array in **Links (JSON)**. For example (replace
+the example address with your real approved destination):
+
+```json
+[
+  {
+    "title": "Learning Hub",
+    "url": "https://intranet.example.org/learning",
+    "description": "Access your organization's training.",
+    "iconName": "Education",
+    "badge": "VPN",
+    "tone": "accent"
+  }
+]
+```
+
+`title` and an absolute HTTPS `url` are required. URLs containing embedded credentials are rejected.
+`description`, `iconName` (Fluent UI), `badge` and `tone` are optional. Only label a link VPN when your
+organization requires it. Supported tones are `neutral`, `accent`, `success`, `warning` and `danger`;
+the initial color names (blue, purple, green, orange, red) remain readable and map to semantic tones.
+Up to 100 links are supported, with 3–12 links per page (default 9). Invalid JSON or entries show an
+explicit error; an empty array restores the setup state. The widget cannot verify that an otherwise
+valid HTTPS URL is your organization's correct destination.
+
+Search checks titles, descriptions and badges across all pages and returns to page one when changed.
+Search and page selection stay local to each instance. Link configuration, view and page-size settings
+use the existing host persistence path, preserving unrelated settings. Existing explicitly saved
+destinations are not overwritten; review any links previously copied from the initial sample set.
+
 ### Adding a widget
 
 1. Write a component that takes an `IWidgetContext` (instance id, its own `settings`, the SPFx
@@ -506,14 +624,15 @@ bodies and attachments.
    and the refresh token for you.
 2. Describe the content with the primitives in `widgets/content` rather than styling it yourself:
    `WidgetView` for the loading/error/empty/content states, then `WidgetItems` for a collection (it
-   handles all five views), or `WidgetStat`, `WidgetProse` or `WidgetAdaptiveCard` for something
-   else. A widget is usually a query plus a `toItem` mapping.
+   handles the five general-purpose views and the opt-in Agenda/Link tiles views), or `WidgetStat`,
+   `WidgetProse` or `WidgetAdaptiveCard` for something else. A widget is usually a query plus a `toItem`
+   mapping.
 3. Register an `IWidgetDefinition` for it in `widgets/WidgetRegistry.tsx` with a **stable** `type`
    key — that key is what lives in saved layouts, so never rename one that has shipped. Give it a
    `category` and `keywords` so it can be found in the catalogue, `requiredPermission` if it needs
    Graph consent, `isRefreshable` if it re-reads on `refreshToken`, `supportedViews` and
    `defaultView` if it renders a collection, and a `footerLink` if there is a full experience to
-   link out to.
+   link out to. Set `contentSurface: 'none'` only when shared content already provides its own surfaces.
 4. Optionally implement `renderSettings`, using the typed fields in `widgets/content` — that is what
    puts a gear icon and settings flyout on the tile.
 

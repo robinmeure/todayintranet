@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Today intranet: product tour, technical architecture, and a hands-on guide to adding custom widgets.">
+  <title>Today intranet | Product, architecture &amp; custom widgets</title>
+  <link rel="stylesheet" href="presentation.css">
+  <script src="presentation.js" defer></script>
+</head>
+<body>
+  <header class="toolbar" aria-label="Presentation controls">
+    <div class="wordmark">today<span>.</span> <span class="tiny">/ field guide</span></div>
+    <label class="sr-only" for="slide-picker">Jump to slide</label>
+    <select id="slide-picker"></select>
+    <button id="overview-button" title="Slide overview (O)">Overview</button>
+    <button id="notes-button" title="Speaker notes and sources (N)">Notes</button>
+    <button id="fullscreen-button" title="Toggle fullscreen (F)">Fullscreen</button>
+    <button id="print-button" title="Print all slides or save as PDF">Print / PDF</button>
+  </header>
+  <noscript><p class="no-script">JavaScript is disabled. All slides are shown below; browser printing still works.</p></noscript>
+  <main class="viewport" aria-label="Presentation slides">
+
+    <section class="slide hero" id="slide-1" data-title="Your day, in one place" data-part="THE BIG PICTURE">
+      <div class="split">
+        <div>
+          <p class="eyebrow">A personal front door to Microsoft 365</p>
+          <h1>Your day.<br>Your intranet.<br><span class="accent">Your layout.</span></h1>
+          <p class="lead">Today intranet turns a SharePoint page into a dashboard people can make their own.</p>
+          <div class="pill-line"><span class="tag">Product tour</span><span class="tag">Technical architecture</span><span class="tag">Custom widgets</span></div>
+          <p class="subline">Application walkthrough &amp; developer field guide<br>September 2026 &nbsp; / &nbsp; ~25 minutes</p>
+        </div>
+        <div class="mini-dashboard" role="img" aria-label="Illustrative dashboard with calendar, mail, clock, tasks and news widgets; all content is fictional.">
+          <div class="mini-top"><h3>Today</h3><span class="mini-edit">Edit dashboard</span></div>
+          <div class="mini-grid">
+            <div class="mini-tile"><b>Calendar</b><p>09:30 &nbsp; Team check-in<br>11:00 &nbsp; Project workshop<br>14:00 &nbsp; Focus time</p></div>
+            <div class="mini-tile"><b>My mail</b><p>Design review<br>Weekly team update<br>Welcome to the project</p></div>
+            <div class="mini-tile"><b>Clock</b><p class="time">09:41</p><p style="text-align:center">Monday, September 21</p></div>
+            <div class="mini-tile"><b>My tasks</b><p>Review the proposal<br>Book a meeting room<br>Finish onboarding</p></div>
+            <div class="mini-tile wide"><b>News from your workplace</b><p>One place for the updates, documents and links that matter to you.</p></div>
+          </div>
+          <p class="mini-note">Illustration / fictional content, not a live tenant screenshot</p>
+        </div>
+      </div>
+      <aside class="notes">
+        <p>Open with the distinction between a shared page and a personal dashboard. The page author places one web part; each visitor controls their own arrangement. This is a read-oriented dashboard with links to the full Microsoft 365 experiences, not a replacement for Outlook or To Do.</p>
+        <p>The illustration uses fictional content. The catalogue and layout-picker images later in this deck were captured from the shared application on 20 September 2026, with no personal messages or documents included.</p>
+        <p>Sources: <a href="../../README.md">Repository README</a>; <a href="../../src/webparts/todayIntranet/TodayIntranetWebPart.ts">Web part entry point</a>.</p>
+      </aside>
+    </section>
+
+    <section class="slide" id="slide-2" data-title="One page, three responsibilities" data-part="PRODUCT">
+      <p class="eyebrow">01 / What the application does</p>
+      <h2>One page. Three responsibilities.</h2>
+      <p class="lead">Bring daily information together, let people arrange it, and give developers a consistent way to extend it.</p>
+      <div class="grid three">
+        <article class="card"><span class="number">01</span><h3>See what matters</h3><p>Surface meetings, inbox messages, tasks, news and search results in one SharePoint experience.</p><p class="small muted">Open the full source application when you need to act.</p></article>
+        <article class="card"><span class="number">02</span><h3>Make it personal</h3><p>Add, remove, move and resize widgets. Choose views, settings and personal tile titles.</p><p class="small muted">No SharePoint page-editing permission is needed to use dashboard edit mode.</p></article>
+        <article class="card"><span class="number">03</span><h3>Extend the platform</h3><p>Register a React widget, reuse shared content primitives, and let the dashboard host it.</p><p class="small muted">The host owns the frame, layout and persistence; the widget owns its content.</p></article>
+      </div>
+      <div class="callout">Personal does not always mean cross-device: read-only visitors save in their browser; writable users can publish to SharePoint.</div>
+      <aside class="notes"><p>Suggested timing: 1 minute. There are two edit modes to distinguish: SharePoint page editing for authors, and the dashboard's own edit mode for visitors. Personal layout persistence depends on effective list permissions, not just the presence of an Edit dashboard button.</p><p>Sources: <a href="../../src/webparts/todayIntranet/components/Dashboard.tsx">Dashboard</a>; <a href="../../src/webparts/todayIntranet/services/SharePointListLayoutStore.ts">Layout store</a>.</p></aside>
+    </section>
+
+    <section class="slide" id="slide-3" data-title="Eight widgets, one catalogue" data-part="PRODUCT">
+      <p class="eyebrow">Out of the box</p>
+      <div class="split shot-layout">
+        <div>
+          <h2>Eight widgets.<br>One catalogue.</h2>
+          <p class="lead">A starter set, with more just a click away.</p>
+          <div class="feature-list">
+            <div class="feature"><span>01</span><div><h3>Microsoft 365</h3><p>Calendar, My mail, My tasks.<br>Permission hints explain the required Graph scopes.</p></div></div>
+            <div class="feature"><span>02</span><div><h3>Content</h3><p>News, Search results, Adaptive card.<br>Bring relevant content into the daily flow.</p></div></div>
+            <div class="feature"><span>03</span><div><h3>Samples</h3><p>Clock and Welcome.<br>Simple reference implementations for developers.</p></div></div>
+          </div>
+          <div class="callout small">Multiple instances are allowed: two search widgets can have different queries, views and titles.</div>
+        </div>
+        <figure><button class="shot" aria-label="Enlarge current widget catalogue screenshot"><img src="assets/widget-catalogue.png" alt="Current Add a widget panel, with Microsoft 365, Content and Samples categories and Graph permission hints." width="966" height="1398"></button><figcaption>Current application / 20 Sep 2026. Click to enlarge.</figcaption></figure>
+      </div>
+      <aside class="notes"><p>The catalogue is generated from WidgetRegistry. It searches widget names, descriptions and keywords, groups by category, and marks types already on the dashboard. This indicator does not prevent adding a second instance.</p><p>The starter layout is three medium-height columns containing Calendar, My mail and My tasks. The screenshot reflects a user-customized dashboard, not those defaults.</p><p>Sources: <a href="../../src/webparts/todayIntranet/widgets/WidgetRegistry.tsx">Widget registry</a>; <a href="../../src/webparts/todayIntranet/components/AddWidgetPanel.tsx">Catalogue</a>; <a href="../../src/webparts/todayIntranet/TodayIntranetWebPart.ts">Starter layout</a>.</p></aside>
+    </section>
+
+    <section class="slide" id="slide-4" data-title="Personalization without page editing" data-part="PRODUCT">
+      <p class="eyebrow">The employee journey</p>
+      <div class="split shot-layout">
+        <div>
+          <h2>Arrange your workspace.<br>Keep the shared page intact.</h2>
+          <div class="feature-list" style="margin-top:32px">
+            <div class="feature"><span>1</span><div><h3>Edit dashboard</h3><p>Expose add, layout, settings and remove controls.</p></div></div>
+            <div class="feature"><span>2</span><div><h3>Choose a starting structure</h3><p>Eight presets. Three tile heights: short, medium, tall.</p></div></div>
+            <div class="feature"><span>3</span><div><h3>Fine-tune individual tiles</h3><p>Drag or resize. Tab to a title bar: arrows move; Shift + arrows resize.</p></div></div>
+            <div class="feature"><span>4</span><div><h3>Select Done</h3><p>Finish editing and request publishing to SharePoint when storage permissions allow it.</p></div></div>
+          </div>
+          <div class="callout small">Presets rearrange existing widgets; they do not add or remove them. Manual movement switches the layout to Custom.</div>
+        </div>
+        <figure><button class="shot" aria-label="Enlarge current layout picker screenshot"><img src="assets/layout-picker.png" alt="Current layout picker showing three tile heights and eight column arrangements, with Apply layout and Cancel buttons." width="966" height="1398"></button><figcaption>Current application / no layout changes were applied for this capture.</figcaption></figure>
+      </div>
+      <aside class="notes"><p>Suggested demo: open Edit dashboard, inspect Add a widget, then Choose a layout. A chosen preset remains active when adding or removing widgets; the host reflows them into its slots. Manual drag or keyboard movement disables that automatic preset behavior.</p><p>Edits are checkpointed locally before Done. Leaving the page is not Cancel: committed changes remain in the browser, even if they have not been published to SharePoint.</p><p>Sources: <a href="../../src/webparts/todayIntranet/components/Dashboard.tsx">Edit lifecycle</a>; <a href="../../src/webparts/todayIntranet/model/LayoutPresets.ts">Layout presets</a>.</p></aside>
+    </section>
+
+    <section class="slide" id="slide-5" data-title="One visual language" data-part="PRODUCT">
+      <p class="eyebrow">Consistent by construction</p>
+      <h2>Different information. The same visual language.</h2>
+      <p class="lead">Collection widgets can present the same items in five views, without implementing five separate experiences.</p>
+      <div class="view-strip">
+        <div class="view-box"><div class="glyph rows" aria-hidden="true"><i></i><i></i><i></i></div><h3>List</h3></div>
+        <div class="view-box"><div class="glyph rows compact" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><h3>Compact</h3></div>
+        <div class="view-box"><div class="glyph" aria-hidden="true"><i></i><i></i><i></i></div><h3>Cards</h3></div>
+        <div class="view-box"><div class="glyph gallery" aria-hidden="true"><i></i><i></i><i></i><i></i></div><h3>Gallery</h3></div>
+        <div class="view-box"><div class="glyph adaptive" aria-hidden="true"><i></i><i></i><i></i></div><h3>Adaptive Card</h3></div>
+      </div>
+      <div class="grid three">
+        <article class="card"><h3>Shared tile chrome</h3><p class="small">Title, icon, refresh, personal title, settings flyout and optional footer link.</p></article>
+        <article class="card"><h3>Shared data states</h3><p class="small">Skeleton, empty state, actionable error, and refresh progress that keeps existing data visible.</p></article>
+        <article class="card"><h3>Shared accessibility</h3><p class="small">Theme-aware colors, keyboard focus, reduced motion and responsive content.</p></article>
+      </div>
+      <aside class="notes"><p>These views apply to widgets that use WidgetItems and declare supportedViews. Clock and Welcome use other primitives. The Adaptive Card view converts ordinary item data into a card; the separate Adaptive card widget accepts a card JSON payload.</p><p>Sources: <a href="../../src/webparts/todayIntranet/widgets/content/WidgetItems.tsx">WidgetItems</a>; <a href="../../src/webparts/todayIntranet/widgets/content/WidgetView.tsx">WidgetView</a>; <a href="../../src/webparts/todayIntranet/styles/_widgetVisuals.scss">Shared visuals</a>.</p></aside>
+    </section>
+
+    <section class="slide" id="slide-6" data-title="The technical architecture" data-part="ARCHITECTURE">
+      <p class="eyebrow">02 / How it works</p>
+      <h2>A client-side host, not a separate backend.</h2>
+      <p class="lead">SharePoint supplies identity, context and hosting. React supplies the dashboard. Widgets talk to existing services.</p>
+      <div class="architecture">
+        <div class="stack">
+          <div class="flow-label">SharePoint page</div>
+          <div class="node"><h3>SPFx web part</h3><p>Context, theme, title, dashboard ID and starter layout.</p></div>
+          <div class="flow-label">passes context &amp; store &rarr;</div>
+          <div class="node"><h3>Technology stack</h3><p>SPFx 1.23.2<br>React 17 / TypeScript 5.8<br>Fluent UI v8 / Heft</p></div>
+        </div>
+        <div class="stack">
+          <div class="flow-label">Browser / React</div>
+          <div class="node emphasis"><h3>Dashboard</h3><p>Edit state, responsive grid, presets and one layout write path.</p></div>
+          <div class="node"><h3>WidgetRegistry &rarr; WidgetFrame</h3><p>Resolve a type; supply chrome, settings, refresh and an error boundary.</p></div>
+          <div class="node"><h3>Widget content + shared primitives</h3><p>Render data, not custom dashboard infrastructure.</p></div>
+        </div>
+        <div class="stack">
+          <div class="flow-label">Data &amp; persistence</div>
+          <div class="node"><h3>Microsoft Graph</h3><p>Calendar, mail, To Do<br>MSGraphClientV3</p></div>
+          <div class="node"><h3>SharePoint REST</h3><p>Search / news<br>Personal layout list</p></div>
+          <div class="node"><h3>Browser storage</h3><p>Local layout checkpoints<br>In-memory widget data cache</p></div>
+        </div>
+      </div>
+      <aside class="notes"><p>The right-hand nodes are separate paths: data widgets use Graph or SharePoint search, while Dashboard writes layout documents through ILayoutStore. The repository contains no custom server API. In-memory fetched data and persistent browser layout recovery have different purposes and lifetimes.</p><p>The manifest declares SharePoint web-part/full-page and Teams hosts. This presentation demonstrates the SharePoint communication-site experience; it does not claim Teams deployment was validated.</p><p>Sources: <a href="../../package.json">Dependencies</a>; <a href="../../src/webparts/todayIntranet/TodayIntranetWebPart.ts">Entry point</a>; <a href="../../src/webparts/todayIntranet/components/Dashboard.tsx">Dashboard</a>; <a href="../../src/webparts/todayIntranet/widgets/WidgetRegistry.tsx">Registry</a>.</p></aside>
+    </section>
+
+    <section class="slide code-slide" id="slide-7" data-title="The layout is a document" data-part="ARCHITECTURE">
+      <p class="eyebrow">The core data model</p>
+      <h2>The layout is data. A widget type is code.</h2>
+      <p class="lead">Each saved instance references a registered type and carries its own placement, title and settings.</p>
+      <div class="split">
+        <div class="code-panel"><div class="code-label">Illustrative IDashboardLayout / schema version 2</div><pre><code>{
+  "version": 2,
+  "presetId": "three",
+  "rowSizeId": "medium",
+  "widgets": [{
+    "id": "calendar-1",
+    "type": "m365.calendar",
+    "title": "My upcoming week",
+    "x": 0, "y": 0,
+    "w": 4, "h": 6,
+    "settings": { "daysAhead": 7 }
+  }]
+}</code></pre></div>
+        <div>
+          <h3>A canonical 12-column grid</h3>
+          <p class="small muted">Desktop geometry is the source of truth. Smaller breakpoints derive 8, 6, 4 or 2 columns by clamping widths.</p>
+          <div class="rule"></div>
+          <h3>A stable identity boundary</h3>
+          <p class="small muted"><code>id</code> identifies one placed tile.<br><code>type</code> resolves its implementation.<br><code>settings</code> belongs to that instance.</p>
+          <div class="callout small">Only the widest breakpoint saves grid geometry, so a phone visit cannot overwrite the desktop arrangement.</div>
+        </div>
+      </div>
+      <aside class="notes"><p>The example shows one entry for readability. Preset metadata and widget geometry are stored together. Version 1 and version 2 layouts are supported; invalid or unsupported future layouts are preserved and routed to recovery rather than silently replaced.</p><p>Breakpoint widths are 1200, 996, 768, 480 and 0 pixels; the canonical row height is 56 pixels. Widget definitions can set minimum size constraints.</p><p>Sources: <a href="../../src/webparts/todayIntranet/model/IDashboardLayout.ts">Layout interfaces</a>; <a href="../../src/webparts/todayIntranet/model/layoutDecoder.ts">Layout decoder</a>; <a href="../../src/webparts/todayIntranet/components/Dashboard.tsx">Grid behavior</a>.</p></aside>
+    </section>
+
+    <section class="slide" id="slide-8" data-title="Local first, publish on Done" data-part="ARCHITECTURE">
+      <p class="eyebrow">Persistence lifecycle</p>
+      <h2>Checkpoint locally. Publish on Done.</h2>
+      <p class="lead">A layout includes geometry, personal titles, widget settings and preset choices.</p>
+      <div class="sequence">
+        <article class="card"><span class="number">1 / LOAD</span><h3>Resolve scope</h3><p>Site + web + dashboard ID + user identity select the personal layout.</p></article>
+        <article class="card"><span class="number">2 / EDIT</span><h3>Save a checkpoint</h3><p>Committed changes are written immediately to scoped browser storage.</p></article>
+        <article class="card"><span class="number">3 / DONE</span><h3>Request publish</h3><p>Close draft settings first, then serialize the cloud write if the user can write.</p></article>
+        <article class="card"><span class="number">4 / RECOVER</span><h3>Resolve explicitly</h3><p>ETag conflicts and divergent drafts prompt a choice, not a silent overwrite.</p></article>
+      </div>
+      <div class="grid two">
+        <div class="node"><h3>Writable user</h3><p>Hidden <code>TodayIntranetLayouts</code> list in the hosting web.<br><code>Title</code> = dashboard ID + login; <code>LayoutJson</code> = document.</p></div>
+        <div class="node"><h3>Read-only visitor</h3><p>Browser-only layout, explicitly labeled. No automatic write grants.<br>Does not follow the user to another browser or device.</p></div>
+      </div>
+      <aside class="notes"><p>A dashboard ID defaults to "default". Pages in the same web with the same dashboard ID share a user's arrangement. Giving another dashboard a different ID creates a separate scope. Changing it redirects users to a different set of layouts.</p><p>Clean cloud-validated layout cache: 5 minutes. Verified list configuration and capability cache: 1 hour. Retry bypasses both. Temporary failures have at most three automatic retries with backoff/jitter and Retry-After handling. Local quota and policy errors are surfaced.</p><p>ETags protect updates; simultaneous first creates can still produce duplicates because Title is indexed but not unique with own-item access. The application detects the race and asks for reconciliation. Hiding the list is not a security boundary; own-item access uses Created By, and elevated admins can still read items.</p><p>Sources: <a href="../../src/webparts/todayIntranet/services/ILayoutStore.ts">Store contract</a>; <a href="../../src/webparts/todayIntranet/services/SharePointListLayoutStore.ts">Store implementation</a>; <a href="../../src/webparts/todayIntranet/services/SharePointLayoutClient.ts">SharePoint client</a>.</p></aside>
+    </section>
+
+    <section class="slide" id="slide-9" data-title="Two live data paths" data-part="ARCHITECTURE">
+      <p class="eyebrow">Integration &amp; freshness</p>
+      <h2>Two live data paths. One rendering contract.</h2>
+      <table>
+        <thead><tr><th>Source</th><th>Used by</th><th>Access model</th><th>Data cache TTL</th></tr></thead>
+        <tbody>
+          <tr><td>Microsoft Graph</td><td>My mail</td><td><code>Mail.ReadBasic</code></td><td>3 minutes</td></tr>
+          <tr><td>Microsoft Graph</td><td>Calendar</td><td><code>Calendars.ReadBasic</code></td><td>5 minutes</td></tr>
+          <tr><td>Microsoft Graph</td><td>My tasks</td><td><code>Tasks.Read</code></td><td>10 minutes</td></tr>
+          <tr><td>SharePoint Search REST</td><td>News, Search results</td><td>Signed-in user; security-trimmed</td><td>15 minutes</td></tr>
+        </tbody>
+      </table>
+      <div class="grid three">
+        <article class="node"><h3>Reuse identical requests</h3><p>Shared in-memory cache and in-flight deduplication across web-part instances on the page.</p></article>
+        <article class="node"><h3>Scope the cache</h3><p>Tenant, user, site, web, source and normalized request parameters are part of the identity.</p></article>
+        <article class="node"><h3>Refresh intentionally</h3><p>The tile's refresh action bypasses fresh cached data. Existing content remains visible during refresh.</p></article>
+      </div>
+      <aside class="notes"><p>These are freshness durations, not background polling intervals. The data cache is module-level and memory-only: it is not an offline database and is separate from layout checkpoints in localStorage. Successful empty responses are cached too.</p><p>Search combines fixed widget KQL, selected scope and user terms. News uses PromotedState:2. Search results requires terms. The settings preview uses the same effective query and request cache as the tile.</p><p>Sources: <a href="../../src/webparts/todayIntranet/widgets/data/WidgetDataCache.ts">Cache</a>; <a href="../../src/webparts/todayIntranet/widgets/graph/useGraphData.ts">Graph hook</a>; <a href="../../src/webparts/todayIntranet/widgets/search/useSearchData.ts">Search hook</a>; <a href="../../config/package-solution.json">Permission requests</a>.</p></aside>
+    </section>
+
+    <section class="slide" id="slide-10" data-title="Permissions are part of the design" data-part="ARCHITECTURE">
+      <p class="eyebrow">Trust &amp; deployment boundaries</p>
+      <h2>Permissions are part of the design.</h2>
+      <p class="lead">The app runs as the signed-in user. A widget never creates permission just by declaring that it needs it.</p>
+      <div class="grid three">
+        <article class="card"><span class="number">A</span><h3>Graph consent</h3><p class="small">Requested in the solution package and approved in SharePoint admin center &rarr; API access.</p><p class="small muted">The catalogue's permission label is guidance, not the consent mechanism.</p></article>
+        <article class="card"><span class="number">B</span><h3>SharePoint access</h3><p class="small">Search results are trimmed to the current user. Layout writes require effective list permissions.</p><p class="small muted">A site owner can provision the layout list; ordinary visitors are not promoted to writers.</p></article>
+        <article class="card"><span class="number">C</span><h3>Least privilege</h3><p class="small">Basic mail and calendar metadata is sufficient for these tiles. No message or event bodies are requested.</p><p class="small muted">SPFx grants are shared through the tenant's client-extensibility principal, not isolated to one widget.</p></article>
+      </div>
+      <div class="callout">Keep credentials and secrets out of widget settings. Settings are personal configuration, not a secret store.</div>
+      <aside class="notes"><p>Explain that the custom-widget registry is a build-time extension point, not a runtime marketplace for untrusted code. A custom React widget executes inside the web part's client-side context. The error boundary contains rendering failures, not malicious code.</p><p>Permissions requested by the package are Calendars.ReadBasic, Mail.ReadBasic and Tasks.Read. New data access may require a new permission request and a fresh tenant approval. Search and local sample widgets need none of these Graph grants.</p><p>Sources: <a href="../../config/package-solution.json">Package permissions</a>; <a href="../../src/webparts/todayIntranet/services/SharePointLayoutClient.ts">List access model</a>; <a href="https://learn.microsoft.com/sharepoint/dev/spfx/use-msgraph">Microsoft Learn: MSGraphClient</a>.</p></aside>
+    </section>
+
+    <section class="slide" id="slide-11" data-title="Choose your extension path" data-part="CUSTOM WIDGETS">
+      <p class="eyebrow">03 / How to add custom widgets</p>
+      <h2>Two extension paths. Different jobs.</h2>
+      <p class="lead">Use a card payload for authored content. Use a registered React widget for new behavior and data integrations.</p>
+      <div class="grid two">
+        <article class="card"><span class="tag">Configuration</span><h3>Adaptive card payload</h3><ul class="small"><li>Add the existing Adaptive card widget.</li><li>Paste a valid Adaptive Card JSON payload in its settings.</li><li>Render text, facts, imagery and supported card actions.</li><li>No new package for a payload-only change.</li></ul><div class="callout small">Rendering is not a backend: submit/execute actions need an explicit handler and service integration.</div></article>
+        <article class="card"><span class="tag">Development</span><h3>Custom React widget</h3><ul class="small"><li>Create a component that accepts <code>IWidgetContext</code>.</li><li>Reuse shared content and settings primitives.</li><li>Register a stable <code>IWidgetDefinition</code>.</li><li>Build, package and redeploy the SPFx solution.</li></ul><div class="callout small">No Dashboard changes are needed for a normal widget. The registry is the extension seam.</div></article>
+      </div>
+      <aside class="notes"><p>The built-in Adaptive card widget parses its stored JSON and guides authors to schema 1.5 or lower. OpenUrl actions are handled by the shared renderer; Submit is forwarded only when an onSubmit handler is supplied. There is no automatic form-submission backend or built-in Execute handler. Use approved destinations and validate any integration you add.</p><p>The next slides build a small Useful links widget with per-instance settings. It is an instructional example only; this presentation does not add it to the deployed application.</p><p>Sources: <a href="../../src/webparts/todayIntranet/widgets/cards/AdaptiveCardWidget.tsx">Adaptive card widget</a>; <a href="../../src/webparts/todayIntranet/widgets/content/WidgetAdaptiveCard.tsx">Card renderer</a>; <a href="../../src/webparts/todayIntranet/widgets/IWidget.ts">Widget contract</a>.</p></aside>
+    </section>
+
+    <section class="slide" data-title="The widget contract" data-part="CUSTOM WIDGETS">
+      <p class="eyebrow">Extension step 1 / Understand the boundary</p>
+      <h2>Implement content. Receive the platform.</h2>
+      <div class="grid two" style="margin-top:32px">
+        <article class="card">
+          <h3>The definition describes the widget</h3>
+          <ul class="small">
+            <li><code>type</code>: stable persisted identifier.</li>
+            <li>Name, description, icon, category and search keywords.</li>
+            <li>Default/minimum grid size and supported views.</li>
+            <li><code>render(context)</code>: React content.</li>
+            <li><code>renderSettings(context)</code>: optional settings UI.</li>
+            <li>Optional refresh, permission hint and footer link.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>The context describes this instance</h3>
+          <ul class="small">
+            <li><code>instanceId</code>: which placed tile is rendering.</li>
+            <li><code>settings</code>: this tile's configuration.</li>
+            <li><code>spContext</code>: SPFx identity and service clients.</li>
+            <li><code>isEditing</code>: dashboard edit state.</li>
+            <li><code>refreshToken</code>: changes when refresh is requested.</li>
+            <li><code>updateSettings(...)</code>: the host's save path.</li>
+          </ul>
+        </article>
+      </div>
+      <div class="callout">Do not implement another drag handle, layout store or theme system. WidgetFrame and the shared primitives already provide them.</div>
+      <aside class="notes"><p>Do not rename a shipped type key: saved layouts reference it. Widget instance IDs are different from type keys, so multiple copies of one type can coexist. New instances begin with empty settings; components must supply defaults.</p><p>The registry category values are microsoft365, content and demo. The host maps them to user-facing headings. WidgetErrorBoundary contains rendering failures but is not a security sandbox. Removed types remain in saved layouts and show an unavailable state.</p><p>Sources: <a href="../../src/webparts/todayIntranet/widgets/IWidget.ts">IWidgetDefinition and IWidgetContext</a>; <a href="../../src/webparts/todayIntranet/components/WidgetFrame.tsx">WidgetFrame</a>.</p></aside>
+    </section>
+
+    <section class="slide code-slide" data-title="Build the widget component" data-part="CUSTOM WIDGETS">
+      <p class="eyebrow">Extension step 2 / A small, useful tile</p>
+      <h2>Build a Useful links widget.</h2>
+      <p class="lead">Read settings, validate the URL, map to an item, and let the shared renderer handle presentation.</p>
+      <div class="split">
+        <div class="code-panel compact"><div class="code-label">UsefulLinksWidget.tsx / rendering excerpt</div><pre><code>const items: IWidgetListItem[] = [{
+  key: 'team-link',
+  title: textSetting(context, 'linkLabel',
+    DEFAULT_LABEL),
+  href: url,
+  iconName: 'Link',
+  tone: 'accent'
+}];
+
+return &lt;WidgetItems
+  items={items}
+  view={viewSetting(context,
+    USEFUL_LINKS_DEFAULT_VIEW)}
+  ariaLabel="Useful links" /&gt;;</code></pre></div>
+        <div>
+          <h3>Place the component here</h3>
+          <p class="source-path"><code>src/webparts/todayIntranet/widgets/custom/UsefulLinksWidget.tsx</code></p>
+          <p class="small muted">Imports come from <code>../IWidget</code> and <code>../content</code>. The complete example includes those imports and the component wrapper.</p>
+          <div class="rule"></div>
+          <h3>Defaults + validation</h3>
+          <p class="small muted">Starts with the hosting site's URL. Invalid or non-HTTPS links display a shared error message instead of a clickable link.</p>
+          <p class="small"><a href="examples/UsefulLinksWidget.tsx.txt" download="UsefulLinksWidget.tsx">Download the complete TSX example</a></p>
+          <div class="callout small">This is a teaching example, not a widget installed by the presentation.</div>
+        </div>
+      </div>
+      <aside class="notes"><p>The code shown is the rendering portion of the complete downloadable component. parseLinkUrl uses the URL parser and accepts only absolute HTTPS URLs with no embedded credentials. Invalid settings produce WidgetErrorMessage with isActionRequired: true. It does not silently fall back to another destination.</p><p>The stable item key identifies the logical link even when its destination changes. This synchronous widget needs no Graph permission, network hook or refresh button. For asynchronous data, use WidgetView as shown conceptually in the data-driven-widget slide.</p><p>Save the download at the displayed source path, not inside the presentation directory. The .txt extension keeps the teaching file out of application compilation until intentionally installed.</p><p>Sources: <a href="examples/UsefulLinksWidget.tsx.txt">Complete teaching example</a>; <a href="../../src/webparts/todayIntranet/widgets/content/IWidgetContent.ts">Item contract</a>; <a href="../../src/webparts/todayIntranet/widgets/content/WidgetItems.tsx">Collection renderer</a>.</p></aside>
+    </section>
+
+    <section class="slide code-slide" data-title="Add per-instance settings" data-part="CUSTOM WIDGETS">
+      <p class="eyebrow">Extension step 3 / Configuration without new infrastructure</p>
+      <h2>Settings use the same save path.</h2>
+      <p class="lead">The host passes the same instance context to the widget and its settings flyout.</p>
+      <div class="split">
+        <div class="code-panel compact"><div class="code-label">UsefulLinksWidgetSettings / JSX body</div><pre><code>&lt;SettingsSurface
+  description="Configure this tile's link."&gt;
+  &lt;TextSetting
+    context={context}
+    settingKey="linkLabel"
+    label="Link label"
+    fallback={DEFAULT_LABEL}
+    maxLength={120} commitOn="blur" /&gt;
+  &lt;TextSetting
+    context={context}
+    settingKey="linkUrl"
+    label="Link URL"
+    fallback={context.spContext
+      .pageContext.web.absoluteUrl}
+    maxLength={2048} commitOn="blur" /&gt;
+&lt;/SettingsSurface&gt;</code></pre></div>
+        <div>
+          <h3>Reuse typed controls</h3>
+          <p class="small muted">TextSetting manages drafts and preserves other settings. Use the provided numeric and boolean settings helpers for those types.</p>
+          <div class="rule"></div>
+          <h3>Keep settings instance-local</h3>
+          <p class="small muted">Two Useful links tiles can point to different destinations. The personal tile title is handled separately by WidgetFrame.</p>
+          <div class="callout small">If you call <code>updateSettings</code> yourself, pass the full next object: spread existing settings so you do not erase view or other values.</div>
+        </div>
+      </div>
+      <aside class="notes"><p>The full component download exports UsefulLinksWidgetSettings with the required React.FunctionComponent wrapper. The slide shows its JSX body to focus on the contract. commitOn="blur" avoids saving each partially typed URL. Settings dismissal and Done commit final drafts through the host's existing lifecycle.</p><p>Never put access tokens, secrets or large fetched datasets in settings: they are persisted with the personal layout and may appear in recovery exports. The example's HTTPS restriction is validation, not a guarantee that a destination is organizationally approved; an organization may add an allowlist.</p><p>Sources: <a href="examples/UsefulLinksWidget.tsx.txt">Complete example</a>; <a href="../../src/webparts/todayIntranet/widgets/content/WidgetSettings.tsx">Settings primitives</a>; <a href="../../src/webparts/todayIntranet/components/Dashboard.tsx">Settings persistence</a>.</p></aside>
+    </section>
+
+    <section class="slide code-slide" data-title="Register it once" data-part="CUSTOM WIDGETS">
+      <p class="eyebrow">Extension step 4 / Wire the catalogue</p>
+      <h2>One definition makes the widget discoverable.</h2>
+      <div class="split" style="margin-top:27px">
+        <div class="code-panel compact"><div class="code-label">WidgetRegistry.tsx / append to definitions array</div><pre><code>{
+  type: 'custom.usefulLinks',
+  displayName: 'Useful links',
+  description: 'A personal HTTPS shortcut.',
+  iconName: 'Link',
+  category: 'content',
+  keywords: ['team', 'shortcut', 'link'],
+  defaultSize: { w: 4, h: 4 },
+  minSize: { w: 2, h: 3 },
+  supportedViews: [
+    'list', 'compact', 'cards', 'gallery', 'adaptive'
+  ],
+  defaultView: USEFUL_LINKS_DEFAULT_VIEW,
+  render: context =&gt;
+    &lt;UsefulLinksWidget context={context} /&gt;,
+  renderSettings: context =&gt;
+    &lt;UsefulLinksWidgetSettings context={context} /&gt;
+}</code></pre></div>
+        <div>
+          <h3>Import the three exports first</h3>
+          <p class="small muted"><code>UsefulLinksWidget</code>, <code>UsefulLinksWidgetSettings</code> and <code>USEFUL_LINKS_DEFAULT_VIEW</code> come from <code>./custom/UsefulLinksWidget</code>.</p>
+          <h3>Use the existing array</h3>
+          <p class="small muted">The registry builds its lookup map from <code>definitions</code>. There is no runtime <code>register()</code> call to invent.</p>
+          <p class="small"><a href="examples/registry-entry.tsx.txt" download="registry-entry.tsx.txt">Download the import + array entry</a></p>
+          <div class="callout small">Do not change STARTER_LAYOUT unless every new user should receive this widget by default.</div>
+        </div>
+      </div>
+      <aside class="notes"><p>The downloaded registry snippet is an insertion guide, not a replacement for WidgetRegistry.tsx. Add the import, then append the object inside definitions: IWidgetDefinition[]. Its supported views match WidgetItems and viewSetting in the example component.</p><p>Pick a unique stable type key. Changing displayName is different from renaming type: persisted layouts resolve by type. Existing user layouts are not changed by registering a new definition; the widget simply becomes available to add.</p><p>Do not mark this static link widget isRefreshable. A refresh affordance is appropriate only when a widget actually responds to refreshToken or the data hook that observes it.</p><p>Sources: <a href="examples/registry-entry.tsx.txt">Registry insertion example</a>; <a href="../../src/webparts/todayIntranet/widgets/WidgetRegistry.tsx">Actual registry</a>; <a href="../../src/webparts/todayIntranet/TodayIntranetWebPart.ts">Starter layout</a>.</p></aside>
+    </section>
+
+    <section class="slide" data-title="Graduate to a data-driven widget" data-part="CUSTOM WIDGETS">
+      <p class="eyebrow">Extension step 5 / Connect live information</p>
+      <h2>A data widget is a query plus a mapping.</h2>
+      <div class="sequence">
+        <article class="card"><span class="number">QUERY</span><h3>Use the hook</h3><p><code>useGraphData</code> for Graph; <code>useSearchData</code> for SharePoint Search.</p></article>
+        <article class="card"><span class="number">STATE</span><h3>Use WidgetView</h3><p>Loading, error, empty and refresh states come from one shared implementation.</p></article>
+        <article class="card"><span class="number">MAP</span><h3>Create items</h3><p>Map your domain objects into stable <code>IWidgetListItem</code> keys, titles and metadata.</p></article>
+        <article class="card"><span class="number">RENDER</span><h3>Use WidgetItems</h3><p>Render the selected view. Let the common theme and interaction patterns do the rest.</p></article>
+      </div>
+      <div class="grid two">
+        <div class="node"><h3>Make request identity explicit</h3><p>Graph cache keys use scope + dependencies, not the fetcher function. Include a stable operation key and every query-changing setting in <code>deps</code>.</p></div>
+        <div class="node"><h3>Wire permission + refresh</h3><p>Request any new Graph scope in the package. Add the catalogue hint. Set <code>isRefreshable</code> when the hook handles refreshToken.</p></div>
+      </div>
+      <aside class="notes"><p>For example, a new Graph query can use dependencies such as ['team-links:v1', maxItems, filter]. The unique operation string is important: two fetcher implementations using the same scope and identical dependencies otherwise share a cache key. Function identity is intentionally not part of the key, so inline fetchers do not trigger repeated requests.</p><p>Reuse the bounded in-memory cache through existing hooks. Do not store fetched mail, events or documents in widget settings. The host already supplies refreshToken, and the hooks handle stale response suppression and consent-aware errors.</p><p>The new widget should supply loading and empty descriptions through WidgetView. Use explicit requiredPermission metadata for the catalogue, but remember actual consent comes from webApiPermissionRequests and tenant approval.</p><p>Sources: <a href="../../src/webparts/todayIntranet/widgets/graph/useGraphData.ts">Graph hook signature and request identity</a>; <a href="../../src/webparts/todayIntranet/widgets/graph/MailWidget.tsx">Working data widget</a>; <a href="../../src/webparts/todayIntranet/widgets/content/WidgetView.tsx">Shared data states</a>.</p></aside>
+    </section>
+
+    <section class="slide" data-title="Build, test, deploy" data-part="DELIVERY">
+      <p class="eyebrow">From code to a usable widget</p>
+      <h2>Ship through the existing SPFx pipeline.</h2>
+      <div class="split" style="margin-top:35px">
+        <div class="code-panel"><div class="code-label">Repository commands / Node 22.14+ within 22.x</div><pre><code>npm install
+npx heft trust-dev-cert
+npm start
+
+# Production tests, build and packaging
+npm run build</code></pre><div class="rule"></div><p class="small muted">Heft toolchain, not gulp.<br>The hosted workbench URL lives in <code>config/serve.json</code>.</p></div>
+        <div class="feature-list">
+          <div class="feature"><span>1</span><div><h3>Test the contract</h3><p>Render, settings, refresh, empty/error states and minimum tile sizes.</p></div></div>
+          <div class="feature"><span>2</span><div><h3>Deploy the package</h3><p>Upload <code>sharepoint/solution/todayintranet.sppkg</code> to the tenant app catalog.</p></div></div>
+          <div class="feature"><span>3</span><div><h3>Approve new permissions</h3><p>Review API access if the new widget introduces a Graph scope.</p></div></div>
+          <div class="feature"><span>4</span><div><h3>Validate in SharePoint</h3><p>Place in a full-width communication-site section. Test owner, member and visitor behavior.</p></div></div>
+        </div>
+      </div>
+      <aside class="notes"><p>The repository engine range is &gt;=22.14.0 &lt;23.0.0. The certificate step is needed on a new development machine. npm run build runs heft test --clean --production followed by heft package-solution --production. No dependency install or app deployment is required just to open this presentation.</p><p>The package has includeClientSideAssets and skipFeatureDeployment enabled. Tenant-wide availability does not mean the web part is automatically placed on pages. The manifest supportsFullBleed flag enables full-width sections on communication sites.</p><p>Existing persistence, settings, data-hook and error-state tests provide patterns. Tenant validation is still needed for real consent, ETags and list item access.</p><p>Sources: <a href="../../package.json">Build scripts</a>; <a href="../../config/package-solution.json">Package configuration</a>; <a href="../../src/webparts/todayIntranet/TodayIntranetWebPart.manifest.json">Manifest</a>.</p></aside>
+    </section>
+
+    <section class="slide" data-title="The acceptance checklist" data-part="DELIVERY">
+      <p class="eyebrow">Prove the integration, not just the happy path</p>
+      <h2>A widget is done when it behaves like the host.</h2>
+      <div class="grid three" style="margin-top:35px">
+        <article class="card"><h3>Experience</h3><ul class="checklist small"><li>Find it by name and keywords.</li><li>Add two independent instances.</li><li>Try narrow and minimum tile sizes.</li><li>Check keyboard focus and dark theme.</li><li>Change view and personal title.</li></ul></article>
+        <article class="card"><h3>Data</h3><ul class="checklist small"><li>Loading, empty and error states.</li><li>Missing consent and throttling.</li><li>Refresh without blanking content.</li><li>Settings alter the query/cache key.</li><li>Unmount without stale updates.</li></ul></article>
+        <article class="card"><h3>Persistence</h3><ul class="checklist small"><li>Settings survive reload locally.</li><li>Done publishes for writable users.</li><li>Visitors see browser-only status.</li><li>Test another tab and device.</li><li>Export before destructive recovery.</li></ul></article>
+      </div>
+      <div class="callout">Live demo sequence: add &rarr; configure &rarr; change view &rarr; resize &rarr; Done &rarr; reload.</div>
+      <aside class="notes"><p>Suggested timing: 2 minutes, or a 3-minute live demo. Use a non-production test dashboard for changes. Pick one data widget and the sample custom widget if it has been installed. Explicitly point out storage status before and after Done.</p><p>This is a validation checklist, not a statement that all tenant scenarios have been exercised in creating the deck. Source-level tests do not establish real SharePoint permissions or concurrent-create behavior.</p><p>Sources: <a href="../../README.md">Validation and rollout guidance</a>; <a href="../../src/webparts/todayIntranet/widgets/WidgetDataHooks.test.tsx">Hook tests</a>; <a href="../../src/webparts/todayIntranet/components/DashboardPersistence.test.tsx">Persistence tests</a>.</p></aside>
+    </section>
+
+    <section class="slide closing hero" data-title="The mental model to keep" data-part="RECAP">
+      <p class="eyebrow">The mental model to keep</p>
+      <h2>The host owns the experience.<br><span class="accent">The widget owns the value.</span></h2>
+      <div class="grid three">
+        <article class="card"><h3>For employees</h3><p>A personal starting point for the day, inside the intranet they already use.</p></article>
+        <article class="card"><h3>For platform teams</h3><p>SharePoint identity, explicit permissions and deliberate layout persistence.</p></article>
+        <article class="card"><h3>For developers</h3><p>A typed contract, shared primitives and one registry entry to introduce a widget.</p></article>
+      </div>
+      <p class="lead" style="margin-top:35px">Start small: build a useful tile, reuse the host, then connect real data.</p>
+      <aside class="notes"><p>Close by asking the audience to identify one employee need that can be met by a small widget. Keep the first implementation read-only and narrowly scoped; add richer integration only when the contract, permissions and user value are clear.</p><p>All features described in the product and architecture sections are grounded in this repository. The custom Useful links component is a proposed teaching example, not an installed widget.</p></aside>
+    </section>
+
+    <section class="slide" data-title="Source map and further reading" data-part="REFERENCE">
+      <p class="eyebrow">Keep this slide for the handover</p>
+      <h2>Where to go next.</h2>
+      <div class="grid two" style="margin-top:32px">
+        <article class="card small">
+          <h3>Product &amp; architecture</h3>
+          <ul>
+            <li><a href="../../README.md">README: behavior, storage and rollout</a></li>
+            <li><a href="../../src/webparts/todayIntranet/TodayIntranetWebPart.ts">TodayIntranetWebPart.ts</a> &mdash; entry point</li>
+            <li><a href="../../src/webparts/todayIntranet/components/Dashboard.tsx">Dashboard.tsx</a> &mdash; grid and edit lifecycle</li>
+            <li><a href="../../src/webparts/todayIntranet/services/ILayoutStore.ts">ILayoutStore.ts</a> &mdash; persistence contract</li>
+            <li><a href="../../config/package-solution.json">package-solution.json</a> &mdash; deployment and scopes</li>
+          </ul>
+        </article>
+        <article class="card small">
+          <h3>Build a widget</h3>
+          <ul>
+            <li><a href="../../src/webparts/todayIntranet/widgets/IWidget.ts">IWidget.ts</a> &mdash; definition and context</li>
+            <li><a href="../../src/webparts/todayIntranet/widgets/WidgetRegistry.tsx">WidgetRegistry.tsx</a> &mdash; registration</li>
+            <li><a href="../../src/webparts/todayIntranet/widgets/content/index.ts">widgets/content</a> &mdash; reusable primitives</li>
+            <li><a href="../../src/webparts/todayIntranet/widgets/graph/MailWidget.tsx">MailWidget.tsx</a> &mdash; data-widget reference</li>
+            <li><a href="https://learn.microsoft.com/sharepoint/dev/spfx/use-msgraph">Microsoft Learn: Microsoft Graph in SPFx</a></li>
+          </ul>
+        </article>
+      </div>
+      <div class="callout small">Navigate with arrows or Space. N opens speaker notes and per-slide sources; O opens the overview; F toggles fullscreen. Use Print / PDF to export every slide.</div>
+      <p class="tiny" style="margin-top:20px">Offline-ready HTML, CSS and JavaScript. Source links work from the repository; Microsoft Learn links need internet access. Keep the presentation folder together when sharing.</p>
+      <aside class="notes"><p>Deck prepared against the repository and shared browser on 20 September 2026. Screenshot provenance: cropped widget catalogue and layout picker from the running application. No inbox or document-result screenshots were saved. The shared page was returned to view mode without applying layout changes or publishing drafts.</p><p>Presentation files are plain HTML/CSS/JavaScript with local images and no remote runtime dependencies. Speaker notes include additional engineering caveats. Printing excludes the controls and notes.</p></aside>
+    </section>
+  </main>
+  <div class="progress" aria-hidden="true"><div id="progress-fill"></div></div>
+  <footer class="controls">
+    <div class="hint">Arrows / Space &nbsp; next &middot; N &nbsp; notes &middot; O &nbsp; overview &middot; F &nbsp; fullscreen</div>
+    <div class="nav"><button id="previous" aria-label="Previous slide">Previous</button><span id="counter" aria-live="off"></span><button id="next" aria-label="Next slide">Next</button></div>
+  </footer>
+  <div id="announcement" class="sr-only" role="status" aria-live="polite"></div>
+  <dialog id="notes-dialog" aria-labelledby="notes-title"><button class="dialog-close" aria-label="Close speaker notes">Close</button><h2 id="notes-title">Speaker notes</h2><div id="notes-content"></div></dialog>
+  <dialog id="overview-dialog" aria-labelledby="overview-title"><button class="dialog-close" aria-label="Close slide overview">Close</button><h2 id="overview-title">The whole story</h2><p class="muted small">Choose a slide to jump to it.</p><div id="overview-list"></div></dialog>
+  <dialog id="image-dialog" aria-label="Expanded application screenshot"><button class="dialog-close" aria-label="Close screenshot">Close</button><img id="expanded-image" alt=""></dialog>
+</body>
+</html>

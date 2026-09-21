@@ -10,6 +10,8 @@ export * from './IWidgetContent';
 export * from './toAdaptiveCard';
 export * from './WidgetAdaptiveCard';
 export * from './WidgetCards';
+export * from './WidgetCollections';
+export * from './WidgetCollectionControls';
 export * from './WidgetItems';
 export * from './WidgetList';
 export * from './WidgetProse';

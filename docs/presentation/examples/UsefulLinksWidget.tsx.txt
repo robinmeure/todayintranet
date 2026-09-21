@@ -1,0 +1,62 @@
+// Save as src\webparts\todayIntranet\widgets\custom\UsefulLinksWidget.tsx.
+import * as React from 'react';
+import { IWidgetContext } from '../IWidget';
+import {
+  IWidgetListItem, SettingsSurface, TextSetting, WidgetErrorMessage,
+  WidgetItems, textSetting, viewSetting
+} from '../content';
+
+export const USEFUL_LINKS_DEFAULT_VIEW = 'list';
+const DEFAULT_LABEL = 'Open team site';
+
+function parseLinkUrl(value: string): string | undefined {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && !url.username && !url.password
+      ? url.href
+      : undefined;
+  } catch (error) {
+    if (error instanceof TypeError) {
+      return undefined;
+    }
+    throw error;
+  }
+}
+
+export const UsefulLinksWidget: React.FunctionComponent<{
+  context: IWidgetContext;
+}> = ({ context }) => {
+  const url = parseLinkUrl(textSetting(
+    context, 'linkUrl', context.spContext.pageContext.web.absoluteUrl
+  ));
+  if (!url) {
+    return <WidgetErrorMessage error={{
+      message: 'Open widget settings and enter an absolute HTTPS URL without credentials.',
+      isActionRequired: true
+    }} />;
+  }
+  const items: IWidgetListItem[] = [{
+    key: 'team-link',
+    title: textSetting(context, 'linkLabel', DEFAULT_LABEL),
+    href: url,
+    iconName: 'Link',
+    tone: 'accent'
+  }];
+  return <WidgetItems items={items}
+    view={viewSetting(context, USEFUL_LINKS_DEFAULT_VIEW)}
+    ariaLabel="Useful links" />;
+};
+
+export const UsefulLinksWidgetSettings: React.FunctionComponent<{
+  context: IWidgetContext;
+}> = ({ context }) => (
+  <SettingsSurface description="Configure this tile's link. Only absolute HTTPS URLs are allowed.">
+    <TextSetting context={context} settingKey="linkLabel"
+      label="Link label" fallback={DEFAULT_LABEL}
+      maxLength={120} commitOn="blur" />
+    <TextSetting context={context} settingKey="linkUrl"
+      label="Link URL"
+      fallback={context.spContext.pageContext.web.absoluteUrl}
+      maxLength={2048} commitOn="blur" />
+  </SettingsSurface>
+);

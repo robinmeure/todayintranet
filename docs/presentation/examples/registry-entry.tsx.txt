@@ -1,0 +1,21 @@
+// In src\webparts\todayIntranet\widgets\WidgetRegistry.tsx:
+// Add this import alongside the existing widget imports.
+import {
+  UsefulLinksWidget, UsefulLinksWidgetSettings, USEFUL_LINKS_DEFAULT_VIEW
+} from './custom/UsefulLinksWidget';
+
+// Add this object inside the existing definitions: IWidgetDefinition[] array.
+{
+  type: 'custom.usefulLinks',
+  displayName: 'Useful links',
+  description: 'A personal shortcut to your team site or another HTTPS destination.',
+  iconName: 'Link',
+  category: 'content',
+  keywords: ['team', 'shortcut', 'link'],
+  defaultSize: { w: 4, h: 4 },
+  minSize: { w: 2, h: 3 },
+  supportedViews: ['list', 'compact', 'cards', 'gallery', 'adaptive'],
+  defaultView: USEFUL_LINKS_DEFAULT_VIEW,
+  render: (context) => <UsefulLinksWidget context={context} />,
+  renderSettings: (context) => <UsefulLinksWidgetSettings context={context} />
+}

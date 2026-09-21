@@ -1,31 +1,30 @@
 @use '../styles/widgetVisuals' as visual;
-@import '~@microsoft/sp-office-ui-fabric-core/dist/sass/SPFabricCore.scss';
 
 .frame {
   @include visual.text;
-  @include visual.themed-border;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
   height: 100%;
   min-width: 0;
   overflow: hidden;
-  border-radius: visual.$radius-lg;
-  background-color: '[theme:white, default:#ffffff]';
-  box-shadow: visual.$shadow;
+  background: transparent;
 }
 
 .frameEditing {
-  border-style: dashed;
-  border-color: '[theme:themePrimary, default:#0078d4]';
+  --widget-edit-color: "[theme:themePrimary, default:#0078d4]";
+  outline: 1px dashed var(--widget-edit-color);
+  outline-offset: -1px;
+  border-radius: visual.$radius-xl;
 }
 
 .header {
-  @include visual.themed-border('[theme:neutralLighter, default:#f3f2f1]', bottom);
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: visual.$space-sm;
-  padding: visual.$space-xs visual.$space-sm visual.$space-xs visual.$space-md;
+  padding: visual.$space-xs 0;
+  margin-bottom: visual.$space-sm;
   min-height: 44px;
   box-sizing: border-box;
   flex: 0 0 auto;
@@ -70,21 +69,17 @@
 
 .gripper {
   flex: 0 0 auto;
-  margin-left: -6px;
   font-size: 12px;
   color: '[theme:neutralTertiary, default:#a19f9d]';
 }
 
-.icon {
-  flex: 0 0 auto;
-  font-size: 16px;
-  color: '[theme:themePrimary, default:#0078d4]';
-}
-
 .title {
-  flex: 1 1 auto;
+  flex: 1 1 140px;
   min-width: 0;
-  font-weight: 600;
+  margin: 0;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -111,6 +106,10 @@
   opacity: 1;
 }
 
+.actions:empty {
+  display: none;
+}
+
 /* Nothing reveals them on a touch screen, so there they are always visible. */
 @media (hover: none) {
   .actions {
@@ -124,26 +123,46 @@
   min-height: 0;
   min-width: 0;
   box-sizing: border-box;
-  padding: visual.$space-md;
+  padding: visual.$space-lg;
   overflow: auto;
+  border-radius: visual.$radius-xl;
+  background-color: '[theme:white, default:#ffffff]';
   color: '[theme:neutralPrimary, default:#323130]';
 }
 
-.footer {
-  flex: 0 0 auto;
-  padding: 0 visual.$space-md visual.$space-sm;
+.bodyBare {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
-.footerLink {
+.experienceLink {
   @include visual.meta;
+  flex: 0 1 auto;
   display: inline-flex;
   align-items: center;
   gap: visual.$space-xs;
   min-height: 24px;
+  min-width: 0;
+  max-width: 100%;
+  margin-inline-start: auto;
+  color: '[theme:neutralSecondary, default:#605e5c]';
+  text-decoration: underline;
 }
 
-.footerIcon {
+.experienceText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.experienceIcon {
+  flex: 0 0 auto;
   font-size: 10px;
+}
+
+.experienceLink:focus-visible {
+  @include visual.focus-ring;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -153,12 +172,15 @@
 }
 
 @media (forced-colors: active) {
-  .frame {
-    border-color: CanvasText;
-    box-shadow: none;
+  .body {
+    border: 1px solid CanvasText;
+  }
+
+  .bodyBare {
+    border: 0;
   }
 
   .frameEditing {
-    border-color: Highlight;
+    outline-color: Highlight;
   }
 }

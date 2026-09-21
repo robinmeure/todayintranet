@@ -23,11 +23,12 @@ import {
 } from './graph/CalendarWidget';
 import { MailWidget, MailWidgetSettings, MAIL_LINK, MAIL_DEFAULT_VIEW } from './graph/MailWidget';
 import { TasksWidget, TasksWidgetSettings, TODO_LINK, TASKS_DEFAULT_VIEW } from './graph/TasksWidget';
+import { MyLinksWidget, MyLinksWidgetSettings, MY_LINKS_DEFAULT_VIEW } from './links/MyLinksWidget';
 
 const definitions: IWidgetDefinition[] = [
   {
     type: 'm365.calendar',
-    displayName: 'Calendar',
+    displayName: 'My calendar',
     description: 'Your upcoming Outlook meetings and appointments.',
     iconName: 'Calendar',
     category: 'microsoft365',
@@ -35,10 +36,10 @@ const definitions: IWidgetDefinition[] = [
     requiredPermission: 'Calendars.ReadBasic',
     isRefreshable: true,
     footerLink: CALENDAR_LINK,
-    supportedViews: ALL_ITEM_VIEWS,
+    supportedViews: ['agenda', ...ALL_ITEM_VIEWS],
     defaultView: CALENDAR_DEFAULT_VIEW,
-    defaultSize: { w: 4, h: 6 },
-    minSize: { w: 3, h: 4 },
+    defaultSize: { w: 12, h: 6 },
+    minSize: { w: 6, h: 4 },
     render: (context) => <CalendarWidget context={context} />,
     renderSettings: (context) => <CalendarWidgetSettings context={context} />
   },
@@ -75,6 +76,22 @@ const definitions: IWidgetDefinition[] = [
     minSize: { w: 3, h: 4 },
     render: (context) => <TasksWidget context={context} />,
     renderSettings: (context) => <TasksWidgetSettings context={context} />
+  },
+  {
+    type: 'custom.myLinks',
+    displayName: 'My links',
+    description: 'Searchable shortcuts to the tools and services you use most.',
+    iconName: 'Link',
+    category: 'content',
+    keywords: ['links', 'shortcuts', 'apps', 'tools', 'bookmarks', 'vpn'],
+    isSettingsWide: true,
+    contentSurface: 'none',
+    supportedViews: ['links', ...ALL_ITEM_VIEWS],
+    defaultView: MY_LINKS_DEFAULT_VIEW,
+    defaultSize: { w: 12, h: 9 },
+    minSize: { w: 12, h: 9 },
+    render: (context) => <MyLinksWidget context={context} />,
+    renderSettings: (context) => <MyLinksWidgetSettings context={context} />
   },
   {
     type: 'sp.news',

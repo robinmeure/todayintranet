@@ -5,6 +5,7 @@
   box-sizing: border-box;
   width: 100%;
   padding: 16px 24px 32px;
+  background-color: '[theme:neutralLighter, default:#f3f2f1]';
   color: '[theme:neutralPrimary, default:#323130]';
 }
 
@@ -79,7 +80,7 @@
   .react-grid-item.react-grid-placeholder {
     background: '[theme:themePrimary, default:#0078d4]';
     opacity: 0.2;
-    border-radius: 8px;
+    border-radius: visual.$radius-xl;
     transition-duration: 100ms;
     z-index: 2;
     user-select: none;

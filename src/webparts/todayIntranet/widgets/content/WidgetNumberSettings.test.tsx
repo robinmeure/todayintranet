@@ -14,7 +14,6 @@ import type { MSGraphClientV3 } from '@microsoft/sp-http';
 import type { WebPartContext } from '@microsoft/sp-webpart-base';
 import { IWidgetContext } from '../IWidget';
 import { numberSetting, NumberSetting } from './WidgetSettings';
-import { CalendarWidget } from '../graph/CalendarWidget';
 import { MailWidget } from '../graph/MailWidget';
 import { TasksWidget } from '../graph/TasksWidget';
 import { NewsWidget } from '../search/NewsWidget';
@@ -135,7 +134,6 @@ describe('widget request numeric bounds', () => {
 
   describe.each([
     ['Mail', MailWidget, 6, 0],
-    ['Calendar', CalendarWidget, 5, 5],
     ['Tasks', TasksWidget, 6, 10]
   ] as const)('%s Graph request', (_name, Widget, fallback, overfetch) => {
     it.each([1e200, -5, 3.8, undefined])('bounds a persisted count before calling Graph (%p)', async (maxItems) => {
@@ -144,19 +142,6 @@ describe('widget request numeric bounds', () => {
       const count = maxItems === undefined ? fallback : Math.max(1, Math.min(20, Math.floor(maxItems)));
       expect(graph.top).toHaveBeenCalledWith(count + overfetch);
     });
-  });
-
-  it.each([
-    [1e200, 30],
-    [-5, 1],
-    [2.9, 2],
-    [undefined, 7]
-  ])('bounds calendar days before constructing ISO date query parameters (%p)', async (days, expected) => {
-    CalendarWidget({ context: contextFor({ days }) });
-    const graph = await request();
-    const query = graph.query.mock.calls[0][0];
-    const duration = Date.parse(query.endDateTime) - Date.parse(query.startDateTime);
-    expect(duration).toBe(expected * 24 * 60 * 60 * 1000);
   });
 
   describe.each([

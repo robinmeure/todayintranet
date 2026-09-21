@@ -85,8 +85,8 @@ export const WidgetFrame: React.FunctionComponent<IWidgetFrameProps> = (props) =
   // without the frame having to know anything about where that data comes from.
   const context: IWidgetContext = { ...widgetContext, refreshToken };
 
-  const footerSource = definition?.footerLink;
-  const footerLink = typeof footerSource === 'function' ? footerSource(context) : footerSource;
+  const linkSource = definition?.footerLink;
+  const experienceLink = typeof linkSource === 'function' ? linkSource(context) : linkSource;
 
   return (
     <section className={`${styles.frame} ${isEditing ? styles.frameEditing : ''}`} aria-label={name}>
@@ -104,8 +104,15 @@ export const WidgetFrame: React.FunctionComponent<IWidgetFrameProps> = (props) =
         {isEditing && (
           <Icon iconName="GripperDotsVertical" className={styles.gripper} aria-hidden="true" />
         )}
-        <Icon iconName={definition ? definition.iconName : 'Unknown'} className={styles.icon} aria-hidden="true" />
-        <div className={styles.title} title={name}>{name}</div>
+        <h3 className={styles.title} title={name}>{name}</h3>
+
+        {experienceLink && (
+          <Link href={experienceLink.href} target="_blank" rel="noreferrer" className={styles.experienceLink}
+            onMouseDown={(event) => event.stopPropagation()}>
+            <span className={styles.experienceText}>{experienceLink.text}</span>
+            <Icon iconName="OpenInNewWindow" className={styles.experienceIcon} aria-hidden="true" />
+          </Link>
+        )}
 
         {/* Quiet until the tile is hovered or focused, so a full dashboard stays calm. */}
         <div className={`${styles.actions} ${isEditing ? styles.actionsPinned : ''}`}>
@@ -144,7 +151,7 @@ export const WidgetFrame: React.FunctionComponent<IWidgetFrameProps> = (props) =
         </div>
       </div>
 
-      <div className={styles.body}>
+      <div className={`${styles.body} ${definition?.contentSurface === 'none' ? styles.bodyBare : ''}`}>
         {definition ? (
           <WidgetErrorBoundary widgetName={name}>{definition.render(context)}</WidgetErrorBoundary>
         ) : (
@@ -154,15 +161,6 @@ export const WidgetFrame: React.FunctionComponent<IWidgetFrameProps> = (props) =
           />
         )}
       </div>
-
-      {footerLink && (
-        <div className={styles.footer}>
-          <Link href={footerLink.href} target="_blank" rel="noreferrer" className={styles.footerLink}>
-            {footerLink.text}
-            <Icon iconName="ChevronRightSmall" className={styles.footerIcon} aria-hidden="true" />
-          </Link>
-        </div>
-      )}
 
       {isSettingsOpen && (
         <Callout

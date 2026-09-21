@@ -13,7 +13,7 @@ export type WidgetTone = 'neutral' | 'accent' | 'success' | 'warning' | 'danger'
  * How a collection of items is drawn. The items themselves never change — this is
  * purely presentation, chosen per tile by whoever owns the dashboard.
  */
-export type WidgetItemsView = 'list' | 'compact' | 'cards' | 'gallery' | 'adaptive';
+export type WidgetItemsView = 'list' | 'compact' | 'cards' | 'gallery' | 'adaptive' | 'agenda' | 'links';
 
 export interface IWidgetItemsViewInfo {
   id: WidgetItemsView;
@@ -35,18 +35,35 @@ export const WIDGET_ITEM_VIEWS: IWidgetItemsViewInfo[] = [
     name: 'Adaptive card',
     iconName: 'RectangleShape',
     description: 'Rendered as an Adaptive Card, themed from this site.'
-  }
+  },
+  { id: 'agenda', name: 'Agenda', iconName: 'Calendar', description: 'Status tiles and item actions.' },
+  { id: 'links', name: 'Link tiles', iconName: 'Link', description: 'Shortcuts with icons and badges.' }
 ];
 
 export function getItemsView(id: string | undefined): IWidgetItemsViewInfo | undefined {
   return WIDGET_ITEM_VIEWS.filter((view) => view.id === id)[0];
 }
 
-/** Every view, for the usual case of a widget rendering a plain collection of items. */
-export const ALL_ITEM_VIEWS: WidgetItemsView[] = WIDGET_ITEM_VIEWS.map((view) => view.id);
+/** General-purpose views; specialized views are opted into by their widget definitions. */
+export const ALL_ITEM_VIEWS: WidgetItemsView[] = ['list', 'compact', 'cards', 'gallery', 'adaptive'];
 
 export interface IWidgetBadge {
   text: string;
+  tone?: WidgetTone;
+  iconName?: string;
+}
+
+export interface IWidgetItemAction {
+  text: string;
+  ariaLabel: string;
+  href: string;
+  iconName?: string;
+  isPrimary?: boolean;
+}
+
+export interface IWidgetLeadingLabel {
+  text: string;
+  description?: string;
   tone?: WidgetTone;
 }
 
@@ -73,6 +90,9 @@ export interface IWidgetListItem {
   badge?: IWidgetBadge;
   /** Gives the title the tone colour and extra weight, e.g. unread mail. */
   isEmphasized?: boolean;
+  /** Optional status tile and separate links used by the agenda presentation. */
+  leadingLabel?: IWidgetLeadingLabel;
+  actions?: IWidgetItemAction[];
 }
 
 /** Why a widget could not show its data. */

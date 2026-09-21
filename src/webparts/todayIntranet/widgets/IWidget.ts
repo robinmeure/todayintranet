@@ -49,7 +49,7 @@ export const WIDGET_CATEGORIES: IWidgetCategoryInfo[] = [
   { id: 'demo', name: 'Samples' }
 ];
 
-/** "Open in Outlook" style link, rendered in the tile footer by the frame. */
+/** "Open in Outlook" style link, rendered beside the title by the frame. */
 export interface IWidgetLink {
   text: string;
   href: string;
@@ -71,7 +71,7 @@ export interface IWidgetDefinition {
   /** Catalogue name and default title for instances without a custom title. */
   displayName: string;
   description: string;
-  /** Fluent UI icon name shown in the catalogue and tile header. */
+  /** Fluent UI icon name shown in the catalogue. */
   iconName: string;
   category: WidgetCategory;
   /** Extra terms the catalogue search box matches on, beyond name and description. */
@@ -83,8 +83,10 @@ export interface IWidgetDefinition {
    * something in response to `IWidgetContext.refreshToken`.
    */
   isRefreshable?: boolean;
-  /** Link out to the full experience, rendered as the tile's footer. */
+  /** Link out to the full experience, rendered beside the title. The legacy property name is retained. */
   footerLink?: WidgetFooterLink;
+  /** Defaults to a rounded card. Use none when shared content already provides its own surfaces. */
+  contentSurface?: 'card' | 'none';
   /** Widens the settings flyout, for settings that need the room (a query preview). */
   isSettingsWide?: boolean;
   /**

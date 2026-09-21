@@ -37,12 +37,13 @@ function toDashboardKey(value: string | undefined): string {
 /** Shown to anyone who has not arranged their dashboard yet. */
 const STARTER_LAYOUT: IDashboardLayout = {
   version: CURRENT_LAYOUT_VERSION,
-  presetId: 'three',
+  presetId: 'banner-two',
   rowSizeId: 'medium',
   widgets: [
-    { id: 'starter-calendar', type: 'm365.calendar', x: 0, y: 0, w: 4, h: 6 },
-    { id: 'starter-mail', type: 'm365.mail', x: 4, y: 0, w: 4, h: 6 },
-    { id: 'starter-tasks', type: 'm365.tasks', x: 8, y: 0, w: 4, h: 6 }
+    { id: 'starter-calendar', type: 'm365.calendar', x: 0, y: 0, w: 12, h: 6 },
+    { id: 'starter-links', type: 'custom.myLinks', x: 0, y: 6, w: 12, h: 9 },
+    { id: 'starter-mail', type: 'm365.mail', x: 0, y: 15, w: 6, h: 6 },
+    { id: 'starter-tasks', type: 'm365.tasks', x: 6, y: 15, w: 6, h: 6 }
   ]
 };
 
