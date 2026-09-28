@@ -16,7 +16,17 @@ let pending: Promise<AdaptiveCardsLibrary> | undefined;
  */
 function loadAdaptiveCards(): Promise<AdaptiveCardsLibrary> {
   if (!pending) {
-    pending = import(/* webpackChunkName: 'adaptivecards' */ 'adaptivecards');
+    pending = import(/* webpackChunkName: 'adaptivecards' */ 'adaptivecards').then((library) => {
+      // A library-wide hook, so it is set once here rather than per card. Without it,
+      // Adaptive Cards falls back to any markdown-it it happens to find on the page and
+      // writes the result as HTML. Leaving it unprocessed keeps every text block plain
+      // text, whoever authored the payload.
+      library.AdaptiveCard.onProcessMarkdown = (text, result) => {
+        result.didProcess = false;
+        result.outputHtml = text;
+      };
+      return library;
+    });
   }
   return pending;
 }
@@ -72,14 +82,6 @@ export const WidgetAdaptiveCard: React.FunctionComponent<IWidgetAdaptiveCardProp
     }
 
     try {
-      // Without this, Adaptive Cards falls back to any markdown-it it happens to find
-      // on the page and writes the result as HTML. Leaving it unprocessed keeps every
-      // text block plain text, whoever authored the payload.
-      library.AdaptiveCard.onProcessMarkdown = (text, result) => {
-        result.didProcess = false;
-        result.outputHtml = text;
-      };
-
       const adaptiveCard = new library.AdaptiveCard();
       adaptiveCard.hostConfig = new library.HostConfig(toAdaptiveCardHostConfig(theme));
       adaptiveCard.onExecuteAction = (action) => {

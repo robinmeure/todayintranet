@@ -1,6 +1,7 @@
 import type { MSGraphClientV3 } from '@microsoft/sp-http';
 import {
-  AggregatedTask, loadTaskSource, reconcileTaskSource, TASK_RECORD_LIMIT, TASK_REQUEST_LIMIT, taskDueDay, taskSources
+  advanceTaskHistory, AggregatedTask, emptyTaskHistory, loadTaskSource, reconcileTaskSource, TASK_RECORD_LIMIT,
+  TASK_REQUEST_LIMIT, taskDueDay, taskSources
 } from './taskData';
 
 describe('read-only task sources', () => {
@@ -182,6 +183,23 @@ describe('task reconciliation and calendar dates', () => {
   it('removes unseen source tasks only after complete success', () => {
     expect(reconcileTaskSource([task], { tasks: [], complete: false })).toEqual([task]);
     expect(reconcileTaskSource([task], { tasks: [], complete: true })).toEqual([]);
+  });
+  it('advances task history once per received response and resets it for a new scope', () => {
+    const partial = { tasks: [task], complete: false };
+    const first = advanceTaskHistory(emptyTaskHistory('user-one'), 'user-one', { todo: partial });
+    expect(first.tasks.todo).toEqual([task]);
+    // An unchanged response is already applied, so the same object comes back.
+    expect(advanceTaskHistory(first, 'user-one', { todo: partial })).toBe(first);
+    expect(advanceTaskHistory(first, 'user-one', {})).toBe(first);
+
+    const incomplete = advanceTaskHistory(first, 'user-one', { todo: { tasks: [], complete: false } });
+    expect(incomplete.tasks.todo).toEqual([task]);
+    const complete = advanceTaskHistory(incomplete, 'user-one', { todo: { tasks: [], complete: true } });
+    expect(complete.tasks.todo).toEqual([]);
+
+    const otherUser = advanceTaskHistory(first, 'user-two', {});
+    expect(otherUser).toEqual(emptyTaskHistory('user-two'));
+    expect(advanceTaskHistory(first, 'user-two', { todo: partial }).tasks.todo).toEqual([task]);
   });
   it('keeps upgraded tiles To Do-only and normalizes invalid filter settings', () => {
     expect(taskSources(undefined)).toEqual(['todo']);

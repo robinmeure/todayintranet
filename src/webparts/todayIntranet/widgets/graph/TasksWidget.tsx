@@ -5,14 +5,15 @@ import { useGraphData, IGraphDataResult } from './useGraphData';
 import { NumberSetting, SettingsSurface, ToggleSetting, WidgetItemsView, booleanSetting, numberSetting } from '../content';
 import { calendarDateKey } from './calendarData';
 import {
-  AggregatedTask, formatTaskDue, loadTaskSource, reconcileTaskSource, TASK_SOURCE_LABELS, TASK_SOURCES,
-  TaskSource, TaskSourceData, taskDueDay, taskSources, TODO_URL
+  advanceTaskHistory, AggregatedTask, emptyTaskHistory, formatTaskDue, ITaskHistory, loadTaskSource, TASK_SOURCE_LABELS,
+  TASK_SOURCES, TaskSource, TaskSourceData, taskDueDay, taskSources, TODO_URL
 } from './taskData';
 import {
   defaultTaskMetadata, emptyTaskDocument, normalizeTaskTags, reorderTask, sortTasks, TASK_PRIORITIES, TaskMetadata
 } from './taskOrganization';
 import { useTaskOrganization } from './useTaskOrganization';
 import { widgetDataCacheKey } from '../data/WidgetDataCache';
+import { downloadJson } from '../../common/downloadJson';
 import styles from './TasksWidget.module.scss';
 
 const DEFAULT_MAX_ITEMS: number = 6;
@@ -24,15 +25,6 @@ export const TASKS_VIEWS: WidgetItemsView[] = ['compact', 'list'];
 function useTaskSource(context: IWidgetContext, source: TaskSource, enabled: boolean): IGraphDataResult<TaskSourceData> {
   return useGraphData(context, source === 'outlook' ? 'Mail.ReadBasic' : 'Tasks.Read',
     (client) => loadTaskSource(client, source), ['task-source-v1', source], enabled);
-}
-
-function exportJson(json: string): void {
-  const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = 'task-organization-recovery.json';
-  anchor.click();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 const InlineTags: React.FunctionComponent<{
@@ -112,7 +104,8 @@ export const TasksWidget: React.FunctionComponent<{ context: IWidgetContext }> =
   const dueOnly = booleanSetting(context, 'dueOnly', false);
   const configured = JSON.stringify(taskSources(context.settings.sources));
   const [sources, setSources] = React.useState<TaskSource[]>(() => taskSources(context.settings.sources));
-  React.useEffect(() => { setSources(taskSources(context.settings.sources)); }, [configured]);
+  // `configured` is the value key of the setting, so re-derive from it rather than the raw bag.
+  React.useEffect(() => { setSources(taskSources(JSON.parse(configured))); }, [configured]);
   const todo = useTaskSource(context, 'todo', sources.indexOf('todo') >= 0);
   const planner = useTaskSource(context, 'planner', sources.indexOf('planner') >= 0);
   const outlook = useTaskSource(context, 'outlook', sources.indexOf('outlook') >= 0);
@@ -134,17 +127,19 @@ export const TasksWidget: React.FunctionComponent<{ context: IWidgetContext }> =
   React.useEffect(() => {
     drag.current = undefined; setDragging(undefined); setDrop(undefined); setError(undefined); setAnnouncement('');
   }, [scope, configured, dueOnly, maxItems, state.canEdit]);
-  const history = React.useRef<{ scope: string; tasks: Record<TaskSource, AggregatedTask[]> }>({
-    scope, tasks: { todo: [], planner: [], outlook: [] }
-  });
-  if (history.current.scope !== scope) { history.current = { scope, tasks: { todo: [], planner: [], outlook: [] } }; }
-  const tasks: AggregatedTask[] = [];
+  // Responses are folded into history as state, using React's "adjust state during
+  // render" pattern: the transition is pure, and returns the same object once applied.
+  const [storedHistory, setHistory] = React.useState<ITaskHistory>(() => emptyTaskHistory(scope));
+  const received: Partial<Record<TaskSource, TaskSourceData>> = {};
   sources.forEach((source) => {
     const sourceState = states[source];
-    if (sourceState.status === 'ready' && sourceState.data) {
-      history.current.tasks[source] = reconcileTaskSource(history.current.tasks[source], sourceState.data);
-      tasks.push(...history.current.tasks[source]);
-    }
+    if (sourceState.status === 'ready' && sourceState.data) { received[source] = sourceState.data; }
+  });
+  const history = advanceTaskHistory(storedHistory, scope, received);
+  if (history !== storedHistory) { setHistory(history); }
+  const tasks: AggregatedTask[] = [];
+  sources.forEach((source) => {
+    if (received[source]) { tasks.push(...history.tasks[source]); }
   });
   const ordered = sortTasks(tasks.filter((task) => !dueOnly || task.due), state.document);
   const visible = ordered.slice(0, maxItems);
@@ -302,7 +297,7 @@ export const TasksWidget: React.FunctionComponent<{ context: IWidgetContext }> =
         {store && <div className={styles.editorActions}>
           <button type="button" onClick={() => store.run(() => store.sync())}>Retry organization sync</button>
           <button type="button" onClick={() => {
-            try { exportJson(store.exportRecovery()); } catch (failure) {
+            try { downloadJson(store.exportRecovery(), 'task-organization-recovery.json'); } catch (failure) {
               setError(`Export failed: ${failure instanceof Error ? failure.message : 'unknown error'}`);
             }
           }}>Export recovery data</button>

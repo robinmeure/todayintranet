@@ -22,6 +22,7 @@ import {
 import { ILayoutStore, ILayoutStoreStatus, LayoutStoreAction } from '../services/ILayoutStore';
 import { IWidgetHostContext, IWidgetDefinition } from '../widgets/IWidget';
 import { WidgetRegistry } from '../widgets/WidgetRegistry';
+import { downloadJson } from '../common/downloadJson';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -115,7 +116,20 @@ function swapVertically(
   });
 }
 
-export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
+interface IDashboardSession {
+  /** False once this session's store has been disposed; late callbacks check it. */
+  active: boolean;
+  loaded: boolean;
+  resolving: boolean;
+  saveSequence: number;
+}
+
+/**
+ * One store's dashboard. `Dashboard` keys this by store identity, so the store never
+ * changes for the lifetime of a session and switching stores remounts cleanly: open
+ * drafts checkpoint into the outgoing store before it is disposed.
+ */
+const DashboardSession: React.FunctionComponent<IDashboardProps> = (props) => {
   const { title, spContext, store, starterLayout, theme } = props;
 
   const [widgets, setWidgets] = React.useState<IWidgetInstance[]>([]);
@@ -130,9 +144,11 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
   const [operationError, setOperationError] = React.useState<string | undefined>();
   const [isResolving, setIsResolving] = React.useState<boolean>(false);
   const [confirmation, setConfirmation] = React.useState<'reset' | 'import-legacy' | undefined>();
-  const session = React.useMemo(() => ({ store, active: true, loaded: false, resolving: false, saveSequence: 0 }), [store]);
-  const currentSession = React.useRef(session);
-  currentSession.current = session;
+  const sessionRef = React.useRef<IDashboardSession>();
+  if (!sessionRef.current) {
+    sessionRef.current = { active: true, loaded: false, resolving: false, saveSequence: 0 };
+  }
+  const session = sessionRef.current;
   const widgetsRef = React.useRef<IWidgetInstance[]>(widgets);
   const presetRef = React.useRef<string | undefined>(undefined);
   const rowSizeRef = React.useRef<string>(DEFAULT_ROW_SIZE_ID);
@@ -150,10 +166,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
     setRowSizeId(rowSizeRef.current);
   }, []);
 
-  const isCurrentSession = React.useCallback(
-    () => session.active && currentSession.current === session,
-    [session]
-  );
+  const isCurrentSession = React.useCallback(() => session.active, [session]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -209,6 +222,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
       store.dispose();
     };
     // A starter-layout property change must not reload an already open dashboard.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store, session, applyLayout, isCurrentSession]);
 
   /**
@@ -400,21 +414,10 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
     }
     setOperationError(undefined);
     if (action === 'export') {
-      let url: string | undefined;
-      const link = document.createElement('a');
       try {
-        url = URL.createObjectURL(new Blob([store.exportRecovery()], { type: 'application/json' }));
-        link.href = url;
-        link.download = 'dashboard-layout-recovery.json';
-        document.body.appendChild(link);
-        link.click();
+        downloadJson(store.exportRecovery(), 'dashboard-layout-recovery.json');
       } catch {
         setOperationError('Recovery data could not be exported. Please try again.');
-      } finally {
-        link.remove();
-        if (url) {
-          URL.revokeObjectURL(url);
-        }
       }
       return;
     }
@@ -661,3 +664,20 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => {
     </ThemeProvider>
   );
 };
+
+const storeKeys = new WeakMap<ILayoutStore, string>();
+let lastStoreKey = 0;
+
+/** A stable React key per store instance; a store is never reused across scopes. */
+function storeKey(store: ILayoutStore): string {
+  let key = storeKeys.get(store);
+  if (key === undefined) {
+    key = String(++lastStoreKey);
+    storeKeys.set(store, key);
+  }
+  return key;
+}
+
+export const Dashboard: React.FunctionComponent<IDashboardProps> = (props) => (
+  <DashboardSession key={storeKey(props.store)} {...props} />
+);

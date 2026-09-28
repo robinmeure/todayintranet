@@ -62,8 +62,7 @@ export const NewsWidget: React.FunctionComponent<{ context: IWidgetContext }> = 
 
   const state = useSearchData(
     context,
-    { queryText, selectProperties: SELECT_PROPERTIES, rowLimit: maxItems, sortList: SORT_LIST },
-    [queryText, maxItems]
+    { queryText, selectProperties: SELECT_PROPERTIES, rowLimit: maxItems, sortList: SORT_LIST }
   );
 
   return (

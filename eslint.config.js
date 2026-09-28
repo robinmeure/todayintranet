@@ -9,6 +9,11 @@ module.exports = [
         tsconfigRootDir: __dirname,
         project: './tsconfig.json'
       }
+    },
+    // The SPFx React profile registers this plugin but enables none of its rules.
+    rules: {
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn'
     }
   }
 ];

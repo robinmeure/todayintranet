@@ -79,10 +79,11 @@ function enforceCapacity(): void {
 
 /**
  * Builds a cache key that cannot cross tenant, user, site, web, data source or
- * normalized request parameters.
+ * normalized request parameters. Only the SPFx context is read, so effects can pass
+ * `{ spContext }` rather than depending on a per-render widget context object.
  */
 export function widgetDataCacheKey(
-  context: IWidgetContext,
+  context: Pick<IWidgetContext, 'spContext'>,
   source: string,
   parameters: unknown
 ): string {

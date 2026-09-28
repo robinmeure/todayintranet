@@ -37,6 +37,14 @@ export function widgetDataErrorStatus(error: unknown): number | undefined {
   return typeof status === 'number' ? status : undefined;
 }
 
+/**
+ * Throttling and gateway/server failures that are worth retrying with retained data.
+ * Sources with a different policy (Search reports bad queries as 500) keep their own.
+ */
+export function isTransientHttpStatus(status: number | undefined): boolean {
+  return status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
+}
+
 export function widgetDataErrorCodes(error: unknown): string[] {
   const result: string[] = [];
   let current = errorShape(error);
@@ -66,7 +74,7 @@ export function classifyGraphDataError(error: unknown): WidgetDataErrorDispositi
   }
 
   const status = widgetDataErrorStatus(error);
-  if (status === 429 || status === 500 || status === 502 || status === 503 || status === 504) {
+  if (isTransientHttpStatus(status)) {
     return 'stale';
   }
 

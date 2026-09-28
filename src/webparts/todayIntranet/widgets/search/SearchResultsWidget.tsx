@@ -73,8 +73,7 @@ export const SearchResultsWidget: React.FunctionComponent<{ context: IWidgetCont
 
   const state = useSearchData(
     context,
-    { queryText, selectProperties: SELECT_PROPERTIES, rowLimit: maxItems },
-    [queryText, maxItems]
+    { queryText, selectProperties: SELECT_PROPERTIES, rowLimit: maxItems }
   );
 
   return (

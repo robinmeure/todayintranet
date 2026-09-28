@@ -2,7 +2,7 @@ import * as React from 'react';
 import { IWidgetContext } from '../IWidget';
 import { IWidgetDataState } from '../content';
 import { ISearchRequest, ISearchResults, toWidgetError } from './SearchService';
-import { getSearchData } from './cachedSearchData';
+import { getSearchData, searchDataKey } from './cachedSearchData';
 
 export interface ISearchDataResult extends IWidgetDataState<ISearchResults> {
   reload(): void;
@@ -12,16 +12,16 @@ export interface ISearchDataResult extends IWidgetDataState<ISearchResults> {
  * The search equivalent of `useGraphData`: same `IWidgetDataState` shape, so search
  * backed widgets get the skeleton, refresh, empty and error handling for free.
  *
- * `deps` should list the primitives the request is built from, exactly as it does
- * for `useGraphData`.
+ * The request is re-run whenever any part of it, or the user/site identity, changes.
+ * Callers can build it inline on every render.
  */
 export function useSearchData(
   context: IWidgetContext,
-  request: ISearchRequest,
-  deps: unknown[]
+  request: ISearchRequest
 ): ISearchDataResult {
   const spContext = context.spContext;
   const refreshToken = context.refreshToken;
+  const requestKey = searchDataKey(context, request);
   const [result, setResult] = React.useState<IWidgetDataState<ISearchResults>>({ status: 'loading' });
   const [reloadToken, setReloadToken] = React.useState<number>(0);
   const previousReloadToken = React.useRef<number>(reloadToken);
@@ -49,7 +49,7 @@ export function useSearchData(
     );
 
     const activeRequest = requestRef.current;
-    getSearchData(context, activeRequest, bypassCache)
+    getSearchData({ spContext }, activeRequest, bypassCache)
       .then((response) => {
         if (!cancelled) {
           setResult({
@@ -71,7 +71,7 @@ export function useSearchData(
     return () => {
       cancelled = true;
     };
-  }, [spContext, reloadToken, refreshToken, ...deps]);
+  }, [spContext, requestKey, reloadToken, refreshToken]);
 
   const reload = React.useCallback(() => setReloadToken((token) => token + 1), []);
 

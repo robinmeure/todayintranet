@@ -83,8 +83,7 @@ const SearchHost: React.FunctionComponent<{
 }> = ({ instanceId, refreshToken }) => {
   searchState = useSearchData(
     contextFor(instanceId, refreshToken),
-    searchRequest,
-    [searchRequest.queryText, searchRequest.rowLimit]
+    searchRequest
   );
   return <span data-status={searchState.status} />;
 };
@@ -294,5 +293,26 @@ describe('widget data hook caching', () => {
       status: 'error',
       error: { message: 'Bad query' }
     });
+  });
+
+  it('re-runs Search when any request field changes, but not for an equal inline request', async () => {
+    let request: ISearchRequest | undefined;
+    const InlineHost: React.FunctionComponent<{ sortList?: string }> = ({ sortList }) => {
+      // A fresh object every render, as widgets build it.
+      searchState = useSearchData(contextFor('inline', 0), { ...searchRequest, sortList });
+      return null;
+    };
+    runSearchQuery.mockImplementation(async (_spContext, next) => {
+      request = next;
+      return { rows: [], totalRows: 0 };
+    });
+
+    await act(async () => { ReactDom.render(<InlineHost />, container); });
+    await act(async () => { ReactDom.render(<InlineHost />, container); });
+    expect(runSearchQuery).toHaveBeenCalledTimes(1);
+
+    await act(async () => { ReactDom.render(<InlineHost sortList="Created:descending" />, container); });
+    expect(runSearchQuery).toHaveBeenCalledTimes(2);
+    expect(request?.sortList).toBe('Created:descending');
   });
 });

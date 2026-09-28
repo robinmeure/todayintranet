@@ -55,9 +55,15 @@ export function useTaskOrganization(context: IWidgetContext): {
       unsubscribe();
       if (--entry.users === 0) { entry.cleanup(); stores.delete(scope); }
     };
+    // `scope` encodes the user and site identity; the shared store captures the SPFx
+    // clients once when it is acquired, so a new per-render context must not re-acquire it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scope]);
   React.useEffect(() => {
     if (context.refreshToken && value?.scope === scope && value.store) { value.store.run(() => value.store!.sync()); }
+    // Only a user refresh syncs here. Acquiring a store already loads it, so reacting to
+    // `value` would sync twice on every mount and scope change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [context.refreshToken, scope]);
   return value?.scope === scope ? value : {
     state: { document: { version: 1, tasks: {} }, status: 'loading', message: 'Loading personal organization...', canEdit: false }

@@ -179,3 +179,38 @@ export function reconcileTaskSource(previous: AggregatedTask[], next: TaskSource
   next.tasks.forEach((task) => retained.set(task.key, task));
   return Array.from(retained.values());
 }
+
+/** Tasks shown per source, and the response each list was last reconciled with. */
+export interface ITaskHistory {
+  scope: string;
+  applied: Partial<Record<TaskSource, TaskSourceData>>;
+  tasks: Record<TaskSource, AggregatedTask[]>;
+}
+
+export function emptyTaskHistory(scope: string): ITaskHistory {
+  return { scope, applied: {}, tasks: { todo: [], planner: [], outlook: [] } };
+}
+
+/**
+ * Folds newly received source responses into the history. Pure: returns `history`
+ * itself when nothing new arrived, so callers can store the result as state.
+ * A different scope (another user or site) starts from an empty history.
+ */
+export function advanceTaskHistory(
+  history: ITaskHistory,
+  scope: string,
+  received: Partial<Record<TaskSource, TaskSourceData>>
+): ITaskHistory {
+  let next = history.scope === scope ? history : emptyTaskHistory(scope);
+  TASK_SOURCES.forEach((source) => {
+    const data = received[source];
+    if (data && next.applied[source] !== data) {
+      next = {
+        scope,
+        applied: { ...next.applied, [source]: data },
+        tasks: { ...next.tasks, [source]: reconcileTaskSource(next.tasks[source], data) }
+      };
+    }
+  });
+  return next;
+}

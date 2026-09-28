@@ -67,12 +67,13 @@ const CalendarSchedule: React.FunctionComponent<ICalendarScheduleProps> = ({
     async (client) => ({ start, end, events: await loadCalendarEvents(client, start, end) }),
     [start, end]
   );
+  const { reload } = state;
   React.useEffect(() => {
     if (previousRefreshWindow.current !== refreshWindow) {
       previousRefreshWindow.current = refreshWindow;
-      state.reload();
+      reload();
     }
-  }, [refreshWindow, state.reload]);
+  }, [refreshWindow, reload]);
 
   // Keep the toolbar mounted for keyboard focus, but never label another range's data as this one.
   const hasPreviousRange = !!state.data && (state.data.start !== start || state.data.end !== end);

@@ -6,7 +6,13 @@ import { LayoutCache, LayoutCacheError } from './LayoutCache';
 
 const LOCAL_METADATA = { pendingSync: false, baseKnown: false };
 
-/** Browser-only persistence with explicit conflict and recovery actions. */
+/**
+ * Browser-only persistence with explicit conflict and recovery actions.
+ *
+ * The web part itself always uses `SharePointListLayoutStore`. This implementation is
+ * kept as a second `ILayoutStore` for dashboard integration tests and for hosts that
+ * deliberately have no SharePoint list; selecting it in production is a product decision.
+ */
 export class LocalStorageLayoutStore implements ILayoutStore {
   private readonly _cache: LayoutCache;
   private readonly _listeners: Set<() => void> = new Set();

@@ -5,6 +5,7 @@ import { IWidgetDataState, IWidgetError } from '../content';
 import { getCachedWidgetData, widgetDataCacheKey } from '../data/WidgetDataCache';
 import {
   classifyGraphDataError,
+  isTransientHttpStatus,
   isWidgetDataAuthorizationError,
   widgetDataErrorCodes,
   widgetDataErrorStatus
@@ -14,6 +15,12 @@ import {
 export interface IGraphDataResult<T> extends IWidgetDataState<T> {
   reload(): void;
 }
+
+/**
+ * A value that identifies a Graph request. Restricted to primitives so the request
+ * key is an exact, serializable description of what the fetcher will ask for.
+ */
+export type GraphRequestParameter = string | number | boolean | undefined;
 
 interface IGraphErrorShape {
   code?: string;
@@ -45,7 +52,7 @@ function toGraphError(error: unknown, scope: string): IWidgetError {
           'A tenant administrator has to approve it in the SharePoint admin center under Advanced > API access.'
     };
   }
-  if (status === 429 || status === 500 || status === 502 || status === 503 || status === 504) {
+  if (isTransientHttpStatus(status)) {
     return { message: 'Microsoft 365 is busy right now. Try again in a moment.' };
   }
   return { message: shape.message || 'Could not load data from Microsoft 365.' };
@@ -56,17 +63,22 @@ function toGraphError(error: unknown, scope: string): IWidgetError {
  * so `WidgetView` can render the loading, error, empty and content cases the same way
  * it does for every other widget. `scope` is only used to explain which permission is
  * missing when consent fails.
+ *
+ * `parameters` must list every value the fetcher's request depends on. Together with
+ * the user and site identity they form the request key, which decides both when the
+ * data is re-read and which cache entry it is shared through.
  */
 export function useGraphData<T>(
   context: IWidgetContext,
   scope: string,
   fetcher: (client: MSGraphClientV3) => Promise<T>,
-  deps: unknown[],
+  parameters: readonly GraphRequestParameter[],
   enabled: boolean = true
 ): IGraphDataResult<T> {
   const spContext = context.spContext;
   const refreshToken = context.refreshToken;
   const scopeKey = widgetDataCacheKey(context, `graph:${scope}`, []);
+  const requestKey = widgetDataCacheKey(context, `graph:${scope}`, parameters);
   const [result, setResult] = React.useState<IWidgetDataState<T> & { scopeKey: string }>({ status: 'loading', scopeKey });
   const [reloadToken, setReloadToken] = React.useState<number>(0);
   const previousReloadToken = React.useRef<number>(reloadToken);
@@ -89,7 +101,6 @@ export function useGraphData<T>(
     previousReloadToken.current = reloadToken;
     previousRefreshToken.current = refreshToken;
     const requestFetcher = fetcherRef.current;
-    const requestKey = widgetDataCacheKey(context, `graph:${scope}`, deps);
 
     // Data already on screen stays there and is marked stale: re-reading after a
     // refresh or a settings change should not blank a tile the user is reading.
@@ -130,7 +141,7 @@ export function useGraphData<T>(
     return () => {
       cancelled = true;
     };
-  }, [spContext, scope, scopeKey, reloadToken, refreshToken, enabled, ...deps]);
+  }, [spContext, scope, scopeKey, requestKey, reloadToken, refreshToken, enabled]);
 
   const reload = React.useCallback(() => setReloadToken((token) => token + 1), []);
 

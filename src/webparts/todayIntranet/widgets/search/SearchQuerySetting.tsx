@@ -80,6 +80,9 @@ export const SearchQuerySetting: React.FunctionComponent<ISearchQuerySettingProp
   const previousRunToken = React.useRef<number>(runToken);
 
   const query = buildQuery({ base, scope, terms: terms.value, spContext });
+  // Managed property names cannot contain commas, so this is an exact value key for
+  // the list and callers may pass it inline.
+  const selectKey = selectProperties.join(',');
   // Mirrors what the widget will do, so the preview never shows results the tile
   // would refuse to fetch.
   const isRunnable: boolean = !!query.trim() && (!requiresTerms || !!terms.value.trim());
@@ -98,9 +101,9 @@ export const SearchQuerySetting: React.FunctionComponent<ISearchQuerySettingProp
     setPreview((current) => ({ ...current, status: 'running' }));
 
     const timer = window.setTimeout(() => {
-      getSearchData(context, {
+      getSearchData({ spContext }, {
         queryText: query,
-        selectProperties,
+        selectProperties: selectKey ? selectKey.split(',') : [],
         rowLimit: PREVIEW_ROWS,
         sortList
       }, bypassCache)
@@ -127,8 +130,7 @@ export const SearchQuerySetting: React.FunctionComponent<ISearchQuerySettingProp
       cancelled = true;
       window.clearTimeout(timer);
     };
-    // selectProperties / sortList are constants supplied by the widget.
-  }, [spContext, query, isRunnable, runToken]);
+  }, [spContext, query, isRunnable, runToken, selectKey, sortList]);
 
   const scopeOptions: IDropdownOption[] = SEARCH_SCOPES.map((option) => ({
     key: option.id,
