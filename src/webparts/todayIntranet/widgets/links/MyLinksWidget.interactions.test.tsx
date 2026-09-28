@@ -3,6 +3,8 @@
 jest.mock('../content/WidgetContent.module.scss', () => ({}), { virtual: true });
 jest.mock('../content/WidgetCollections.module.scss', () => ({ linksGrid: 'linksGrid' }), { virtual: true });
 jest.mock('@microsoft/sp-http', () => ({ SPHttpClient: { configurations: { v1: {} } } }));
+jest.mock('../graph/useTaskOrganization', () => ({ useTaskOrganization: jest.fn() }));
+jest.mock('../graph/TasksWidget.module.scss', () => ({}), { virtual: true });
 
 import * as React from 'react';
 import * as ReactDom from 'react-dom';

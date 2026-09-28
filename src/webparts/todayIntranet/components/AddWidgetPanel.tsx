@@ -78,7 +78,7 @@ export const AddWidgetPanel: React.FunctionComponent<IAddWidgetPanelProps> = (pr
                       )}
                       {definition.requiredPermission && (
                         <span className={styles.tag} title="Needs tenant admin approval of this Graph permission">
-                          Needs {definition.requiredPermission}
+                          Needs {Array.isArray(definition.requiredPermission) ? definition.requiredPermission.join(', ') : definition.requiredPermission}
                         </span>
                       )}
                     </span>

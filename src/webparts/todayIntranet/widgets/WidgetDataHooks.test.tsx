@@ -110,6 +110,35 @@ describe('widget data hook caching', () => {
     jest.restoreAllMocks();
   });
 
+  it('never renders the preceding user data while a new Graph scope is loading', async () => {
+    const pending = deferred<string[]>();
+    const rendered: Array<string[] | undefined> = [];
+    const secondContext = new (jest.fn<WebPartContext, []>())();
+    Object.defineProperties(secondContext, {
+      pageContext: { value: {
+        aadInfo: { tenantId: 'tenant-one', userId: 'user-two' },
+        site: { id: 'site-one' }, web: { id: 'web-one' }, user: { loginName: 'user-two@example.com' }
+      } },
+      msGraphClientFactory: { value: { getClient: getGraphClient } }
+    });
+    const ScopedHost: React.FunctionComponent<{ second: boolean }> = ({ second }) => {
+      const context = contextFor('scoped', 0);
+      if (second) { context.spContext = secondContext; }
+      const result = useGraphData(context, 'Tasks.Read',
+        () => second ? pending.promise : Promise.resolve(['first-user-task']), []);
+      rendered.push(result.data);
+      return <span>{result.status}</span>;
+    };
+    await act(async () => { ReactDom.render(<ScopedHost second={false} />, container); });
+    expect(rendered.some((data) => data?.[0] === 'first-user-task')).toBe(true);
+    rendered.length = 0;
+    await act(async () => { ReactDom.render(<ScopedHost second={true} />, container); });
+    expect(rendered.every((data) => data === undefined)).toBe(true);
+    await act(async () => { pending.resolve(['second-user-task']); });
+    expect(rendered.some((data) => data?.[0] === 'first-user-task')).toBe(false);
+    expect(rendered[rendered.length - 1]).toEqual(['second-user-task']);
+  });
+
   it('shares one Graph request between duplicate widgets and bypasses the cache on refresh', async () => {
     const fetcher = jest.fn<Promise<string[]>, [MSGraphClientV3]>().mockResolvedValue(['message']);
     const render = async (refreshToken: number): Promise<void> => {

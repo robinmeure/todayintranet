@@ -61,11 +61,13 @@ export function useGraphData<T>(
   context: IWidgetContext,
   scope: string,
   fetcher: (client: MSGraphClientV3) => Promise<T>,
-  deps: unknown[]
+  deps: unknown[],
+  enabled: boolean = true
 ): IGraphDataResult<T> {
   const spContext = context.spContext;
   const refreshToken = context.refreshToken;
-  const [result, setResult] = React.useState<IWidgetDataState<T>>({ status: 'loading' });
+  const scopeKey = widgetDataCacheKey(context, `graph:${scope}`, []);
+  const [result, setResult] = React.useState<IWidgetDataState<T> & { scopeKey: string }>({ status: 'loading', scopeKey });
   const [reloadToken, setReloadToken] = React.useState<number>(0);
   const previousReloadToken = React.useRef<number>(reloadToken);
   const previousRefreshToken = React.useRef<number>(refreshToken);
@@ -76,6 +78,10 @@ export function useGraphData<T>(
   fetcherRef.current = fetcher;
 
   React.useEffect(() => {
+    if (!enabled) {
+      setResult({ status: 'loading', scopeKey });
+      return;
+    }
     let cancelled = false;
     const bypassCache =
       previousReloadToken.current !== reloadToken ||
@@ -88,7 +94,8 @@ export function useGraphData<T>(
     // Data already on screen stays there and is marked stale: re-reading after a
     // refresh or a settings change should not blank a tile the user is reading.
     setResult((previous) =>
-      previous.status === 'ready' ? { ...previous, isRefreshing: true } : { status: 'loading' }
+      previous.scopeKey === scopeKey && previous.status === 'ready'
+        ? { ...previous, isRefreshing: true } : { status: 'loading', scopeKey }
     );
 
     getCachedWidgetData({
@@ -104,6 +111,7 @@ export function useGraphData<T>(
       .then((response) => {
         if (!cancelled) {
           setResult({
+            scopeKey,
             status: 'ready',
             data: response.data,
             lastUpdated: response.fetchedAt,
@@ -115,16 +123,17 @@ export function useGraphData<T>(
       })
       .catch((error: unknown) => {
         if (!cancelled) {
-          setResult({ status: 'error', error: toGraphError(error, scope) });
+          setResult({ status: 'error', error: toGraphError(error, scope), scopeKey });
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [spContext, scope, reloadToken, refreshToken, ...deps]);
+  }, [spContext, scope, scopeKey, reloadToken, refreshToken, enabled, ...deps]);
 
   const reload = React.useCallback(() => setReloadToken((token) => token + 1), []);
 
-  return { ...result, reload };
+  const { scopeKey: resultScope, ...state } = result;
+  return { ...(enabled && resultScope === scopeKey ? state : { status: 'loading' as const }), reload };
 }

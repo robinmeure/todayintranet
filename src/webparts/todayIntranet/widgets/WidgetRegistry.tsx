@@ -22,7 +22,7 @@ import {
   CALENDAR_DEFAULT_VIEW
 } from './graph/CalendarWidget';
 import { MailWidget, MailWidgetSettings, MAIL_LINK, MAIL_DEFAULT_VIEW } from './graph/MailWidget';
-import { TasksWidget, TasksWidgetSettings, TODO_LINK, TASKS_DEFAULT_VIEW } from './graph/TasksWidget';
+import { TasksWidget, TasksWidgetSettings, TASKS_DEFAULT_VIEW, TASKS_VIEWS } from './graph/TasksWidget';
 import { MyLinksWidget, MyLinksWidgetSettings, MY_LINKS_DEFAULT_VIEW } from './links/MyLinksWidget';
 
 const definitions: IWidgetDefinition[] = [
@@ -63,14 +63,13 @@ const definitions: IWidgetDefinition[] = [
   {
     type: 'm365.tasks',
     displayName: 'My tasks',
-    description: 'Open items from your Microsoft To Do list.',
+    description: 'Read-only To Do, Planner and flagged Outlook work with personal priorities, tags and ordering.',
     iconName: 'CheckboxComposite',
     category: 'microsoft365',
-    keywords: ['to do', 'todo', 'planner', 'checklist'],
-    requiredPermission: 'Tasks.Read',
+    keywords: ['to do', 'todo', 'planner', 'loop', 'outlook', 'priority', 'tags'],
+    requiredPermission: ['Tasks.Read', 'Mail.ReadBasic (Outlook)'],
     isRefreshable: true,
-    footerLink: TODO_LINK,
-    supportedViews: ALL_ITEM_VIEWS,
+    supportedViews: TASKS_VIEWS,
     defaultView: TASKS_DEFAULT_VIEW,
     defaultSize: { w: 4, h: 6 },
     minSize: { w: 3, h: 4 },

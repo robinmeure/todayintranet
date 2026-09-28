@@ -536,7 +536,7 @@ Result titles are redacted.*
 | --- | --- | --- |
 | `m365.calendar` | My calendar — Today, Tomorrow, Upcoming and custom dates | `Calendars.ReadBasic` |
 | `m365.mail` | My mail — inbox, optional unread-only | `Mail.ReadBasic` |
-| `m365.tasks` | My tasks — open Microsoft To Do items | `Tasks.Read` |
+| `m365.tasks` | My tasks — To Do, assigned Planner and flagged Outlook work, with personal organization | `Tasks.Read`, `Mail.ReadBasic` for Outlook |
 | `custom.myLinks` | My links — configurable HTTPS shortcuts, search and pagination | — |
 | `sp.news` | News — news posts from a site, a hub, or everywhere | — |
 | `sp.search` | Search results — any SharePoint search query | — |
@@ -555,6 +555,104 @@ permission rather than failing silently. The `.ReadBasic` scopes are deliberate:
 permissions to the tenant-wide SharePoint Online Client Extensibility principal, not to this
 solution alone, so the widgets ask only for the metadata they render — never message or event
 bodies and attachments.
+
+### Tasks behavior
+
+My tasks uses a compact, theme-aware table inspired by a priority task list: source filter buttons,
+task name, accurately labelled source links, due dates, and personal tags. The shared typography,
+spacing, rounded white content surface and focus treatment match the other widgets; the header
+divider uses the site's primary accent (orange fallback). Narrow tiles place editable tags and
+due dates below the title rather than hiding their controls.
+There are no task-completion checkboxes: **every Microsoft Graph operation is a read**.
+
+- Existing tiles start with **To Do only**, now reading all applicable lists rather than just the
+  default list. **Planner** and **Outlook** are opt-in. Filter buttons change the current visit;
+  **Starting sources** in tile settings, saved with **Done**, sets the next visit's defaults.
+  Both To Do list discovery (`/me/todo/lists`) and task reads (`/me/todo/lists/{id}/tasks`)
+  use plain endpoints without `$select`, `$top` or `$filter` to avoid request-parser failures.
+  Server-provided pagination links are followed unchanged and completed tasks are excluded locally.
+  Completed tasks still count toward the source's paging budget.
+- To Do's special Flagged email list is excluded. Outlook reads flagged, incomplete messages from
+  `/me/messages`, across the primary mailbox (including Deleted Items where exposed by Graph),
+  not just Inbox and not shared/delegated mailboxes or an online archive. Immutable message IDs are
+  requested on every page. The existing `Mail.ReadBasic` permission is retained; no broader consent
+  is requested automatically. An authorization failure is reported for Outlook without blanking
+  To Do or Planner. Verify flags and flag filtering in the target tenant before rollout.
+- Planner reads work assigned to the signed-in user. Synchronized Loop task-list work is shown
+  once under Planner; there is no separately attributed Loop, Teams or Azure filter. To Do and
+  Planner links open the app, not an invented task-specific destination. Outlook uses `webLink`.
+- Paging is capped at **12 requests / 1,000 records per source**. A rejected Outlook flag filter
+  falls back to bounded mailbox-wide paging and client-side filtering. Hitting a cap or failing
+  partway through produces a visible incomplete-results notice and retry action. A partial refresh
+  retains previously loaded rows; only a complete successful source refresh confirms disappearance.
+  Source data stays in the existing in-memory cache, not browser or SharePoint organization storage.
+- Sources have independent cache entries (To Do/Planner: 10 minutes; Outlook: 3 minutes).
+  Refresh bypasses the cache. `maxItems` (1–20) and `dueOnly` are applied after aggregation/sorting
+  and do not cause a new Graph query. These TTLs govern reuse, not a background polling interval.
+- To Do/Outlook due dates are calendar dates in the supplied zone; they are not shifted as UTC
+  instants. Planner timestamps are converted to the viewer's calendar day. Undated work follows
+  dated work. Overdue means a prior calendar day, not an earlier time today.
+- **Compact** and **List** use the same accessible controls, with different row spacing. Existing
+  Cards/Gallery/Adaptive settings remain stored but render the Compact table as a compatibility
+  fallback. The `m365.tasks` registry key and saved item-count/due-only preferences are unchanged.
+
+#### Personal task organization
+
+The star opens an inline priority picker (`high`, `normal`, `low`). Click **+ Tag** to add a tag,
+click an existing chip to rename it, or use its **x** to remove it. Enter or leaving the input
+saves a tag; Escape cancels. Renaming onto a tag the task already has reports the clash and keeps
+both values instead of silently dropping one. There is no separate organization form or Save button.
+Drag a task by its grip to insert it before or after another row; the accent line marks the drop
+position. Dropping beside a task in another priority group adopts that task's priority.
+For keyboard ordering, focus the grip and press Up/Down; Escape cancels a pointer drag.
+These values never update To Do importance, Planner priority, mail flags,
+or source completion. Tags are whitespace-normalized and matched case-insensitively, with at most
+five tags of 32 characters each. Changes save without entering dashboard edit mode or pressing Done.
+
+Organization is shared across Tasks tiles/dashboards on the same SharePoint web for the same user.
+It uses a separate item in the existing hidden `TodayIntranetLayouts` list, with a
+`tasks:v1:<encoded-user>` key, its own ETag, and a plain-text `TaskOrganizationJson` column.
+**A site owner must open a dashboard containing Tasks once to provision the column.**
+Visitors' rights are not broadened. Missing provisioning or write permission results in an explicit
+browser-only mode. Own-item permissions hide records from peers, **not site owners or administrators**;
+avoid putting sensitive information in free-text tags. Source titles, dates and message contents
+are never included in the organization record.
+
+Edits checkpoint immediately to user/site/web-scoped browser outboxes and publish serially after a
+600 ms debounce. Duplicate widget instances share one store; separate tabs keep separate outboxes.
+Automatic saves reuse the last known item ETag and issue an acknowledged conditional update without
+an immediate read-back. A successful response marks that snapshot saved; it is not fire-and-forget.
+If the response includes a new ETag, the next automatic save can also be write-only. Otherwise a
+fresh read is deferred until the next save needs a version. Initial item creation still checks for
+duplicate records. Focus, cross-tab events and explicit refresh/retry can still read remote changes;
+no longer save interval or background polling was added. HTTP 429/503 responses retain edits and
+honor Retry-After rather than immediately verifying a failed write.
+ETag conflicts reload and merge disjoint changes, choosing the larger logical revision for competing
+edits to the same task. Concurrent reorderings of the same priority group require an explicit choice
+between the complete browser or SharePoint organization. Loading, pending, browser-only, conflict
+and error states remain visible. Successful saves show no persistent status or explanatory section
+in the normal task view. Failed loads never publish empty defaults.
+
+The default order is personal priority, then earliest due day and stable identity. Reordering gives
+explicit positions precedence within the destination priority group, inserting the selected task
+at the drop position without swapping intervening tasks. Only the rows a drag actually shifts get
+new positions: tasks already sorted clear of the drop point keep their stored position and revision,
+and the untouched due-sorted tail needs no entries at all. A drag therefore costs a bounded number
+of entries regardless of how many tasks are loaded, and it cannot discard a concurrent edit made on
+another device to a task it did not move. Other saved positions in that group, including hidden
+tasks, are retained. Changing priority with the picker
+removes that task's explicit position; crossing groups by dragging sets its new position. Source disappearance does not
+erase metadata, so reappearing tasks recover their organization. List moves that change a To Do ID
+are treated as new tasks; titles are never used to guess identity.
+
+For **Export recovery data** and explicit clearing actions after a successful save, enter dashboard
+edit mode and expand **Manage personal organization**. When synchronization needs attention, expand
+the organization status for recovery, retry and conflict choices. Entries are retained until cleared,
+with a **500-entry / 60,000-character** document
+limit; there are no periodic timestamp writes or automatic pruning. Export before clearing
+organization or corrupt browser checkpoints. Cross-device roaming, own-item permissions, mailbox
+filter behavior and source links still require acceptance testing in your SharePoint/Microsoft 365
+tenant; local tests and a fixture preview do not certify tenant behavior.
 
 ### Calendar behavior
 

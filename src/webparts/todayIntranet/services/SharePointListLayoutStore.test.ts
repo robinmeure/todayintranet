@@ -11,7 +11,8 @@ import { SPPermission } from '@microsoft/sp-page-context';
 import { IDashboardLayout } from '../model/IDashboardLayout';
 import { LayoutCache } from './LayoutCache';
 import { layoutScopeKey } from './ILayoutStore';
-import { SharePointLayoutClient } from './SharePointLayoutClient';
+import { SharePointDocumentClient, SharePointLayoutClient } from './SharePointLayoutClient';
+import { parseTaskDocument, TaskDocument } from '../widgets/graph/taskOrganization';
 import {
   CONFIGURATION_CACHE_MAX_AGE_MS,
   LAYOUT_CACHE_MAX_AGE_MS,
@@ -61,12 +62,13 @@ class TestServer {
   public delayWrite: Promise<void> | undefined;
   public loseCreateResponse: boolean = false;
   public collectionEtags: boolean = true;
+  public updateEtags: boolean = false;
   public readonly client = new (jest.fn<SPHttpClient, []>())();
   public readonly get = jest.fn<ReturnType<SPHttpClient['get']>, Parameters<SPHttpClient['get']>>();
   public readonly post = jest.fn<ReturnType<SPHttpClient['post']>, Parameters<SPHttpClient['post']>>();
   private _nextId: number = 1;
 
-  public constructor() {
+  public constructor(fieldName: string = 'LayoutJson') {
     this.client.get = this.get;
     this.client.post = this.post;
     this.get.mockImplementation(async (url) => {
@@ -82,21 +84,21 @@ class TestServer {
       if (url.indexOf('/fields?') >= 0) {
         return response({ value: [
           { InternalName: 'Title', TypeAsString: 'Text', Indexed: this.indexed, EnforceUniqueValues: this.unique },
-          ...(this.field ? [{ InternalName: 'LayoutJson', TypeAsString: 'Note',
+          ...(this.field ? [{ InternalName: fieldName, TypeAsString: 'Note',
             SchemaXml: `<Field RichText='${this.richText ? 'TRUE' : 'FALSE'}' />` }] : [])
         ] });
       }
       if (url.indexOf('/items?') >= 0) {
         return response({ value: this.items.slice(0, 2).map((item) => ({
           Id: item.Id,
-          LayoutJson: item.LayoutJson,
+          [fieldName]: item.LayoutJson,
           ...(this.collectionEtags ? { '@odata.etag': `"${item.version}"` } : {})
         })) });
       }
       const itemMatch = /\/items\((\d+)\)/.exec(url);
       if (itemMatch) {
         const item = this.items.filter((candidate) => candidate.Id === Number(itemMatch[1]))[0];
-        return item ? response(item, 200, { ETag: `"${item.version}"` }) : response({}, 404);
+        return item ? response({ ...item, [fieldName]: item.LayoutJson }, 200, { ETag: `"${item.version}"` }) : response({}, 404);
       }
       return response({ Id: 'list-id', ItemCount: this.items.length, Hidden: this.hidden, OnQuickLaunch: false,
         ReadSecurity: this.readSecurity, WriteSecurity: 2, EnableAttachments: false, EffectiveBasePermissions: this._permissions() });
@@ -143,14 +145,14 @@ class TestServer {
         if (etag !== `"${item.version}"`) {
           return response({}, 412);
         }
-        item.LayoutJson = String(body.LayoutJson);
+        item.LayoutJson = String(body[fieldName]);
         item.version++;
-        return response({}, 204);
+        return response({}, 204, this.updateEtags ? { ETag: `"${item.version}"` } : {});
       }
       if (this.unique && this.items.some((item) => item.Title === body.Title)) {
         return response({}, 400);
       }
-      const item: IItem = { Id: this._nextId++, Title: String(body.Title), LayoutJson: String(body.LayoutJson), version: 1 };
+      const item: IItem = { Id: this._nextId++, Title: String(body.Title), LayoutJson: String(body[fieldName]), version: 1 };
       this.items.push(item);
       if (this.loseCreateResponse) {
         this.loseCreateResponse = false;
@@ -176,6 +178,84 @@ class TestServer {
     return this.post.mock.calls.filter(([url]) => url.indexOf('/items') >= 0).length;
   }
 }
+
+describe('task documents in the existing layouts list', () => {
+  it.each([true, false])('acknowledges updates without read-back when response ETag availability is %s', async (updateEtags) => {
+    const server = new TestServer('TaskOrganizationJson');
+    server.updateEtags = updateEtags;
+    const client = new SharePointDocumentClient<TaskDocument>({
+      spHttpClient: server.client, webAbsoluteUrl: options.webAbsoluteUrl, itemKey: 'tasks:v1:user'
+    }, 'TaskOrganizationJson', parseTaskDocument);
+    const first: TaskDocument = { version: 1, tasks: {} };
+    const saved = await client.write(first);
+    const second: TaskDocument = { version: 1, tasks: {
+      'planner:a': { priority: 'high', tags: ['Review'], modified: '1790588000000:device' }
+    } };
+    server.get.mockClear();
+    server.post.mockClear();
+    const version = await client.update(second, saved);
+    expect(server.get).not.toHaveBeenCalled();
+    expect(server.post).toHaveBeenCalledTimes(1);
+    expect(version).toEqual(updateEtags ? { itemId: saved.itemId, etag: '"2"' } : undefined);
+    expect(JSON.parse(server.items[0].LayoutJson)).toEqual(second);
+    await expect(client.update(first, saved)).rejects.toMatchObject({ status: 412 });
+    expect(server.get).not.toHaveBeenCalled();
+    client.dispose();
+  });
+  it('does not acknowledge throttled updates or issue recovery reads for them', async () => {
+    const server = new TestServer('TaskOrganizationJson');
+    const client = new SharePointDocumentClient<TaskDocument>({
+      spHttpClient: server.client, webAbsoluteUrl: options.webAbsoluteUrl, itemKey: 'tasks:v1:user'
+    }, 'TaskOrganizationJson', parseTaskDocument);
+    server.failPost = 429;
+    server.retryAfter = '60';
+    await expect(client.update({ version: 1, tasks: {} }, { itemId: 1, etag: '"1"' }))
+      .rejects.toMatchObject({ status: 429, retryAfterMs: 60000 });
+    expect(server.get).not.toHaveBeenCalled();
+    await expect(client.update({ version: 1, tasks: {} }, { itemId: 1, etag: '*' }))
+      .rejects.toThrow('specific SharePoint version');
+    expect(server.post).toHaveBeenCalledTimes(1);
+    client.dispose();
+  });
+  it.each([429, 503])('does not issue a recovery read after creation is throttled with HTTP %s', async (status) => {
+    const server = new TestServer('TaskOrganizationJson');
+    const client = new SharePointDocumentClient<TaskDocument>({
+      spHttpClient: server.client, webAbsoluteUrl: options.webAbsoluteUrl, itemKey: 'tasks:v1:user'
+    }, 'TaskOrganizationJson', parseTaskDocument);
+    server.failPost = status;
+    await expect(client.write({ version: 1, tasks: {} })).rejects.toMatchObject({ status });
+    expect(server.get).not.toHaveBeenCalled();
+    expect(server.post).toHaveBeenCalledTimes(1);
+    client.dispose();
+  });
+  it('provisions the independent field and uses its parser, item key and conditional ETag writes', async () => {
+    const server = new TestServer('TaskOrganizationJson');
+    server.owner = true;
+    server.field = false;
+    const client = new SharePointDocumentClient<TaskDocument>({
+      spHttpClient: server.client, webAbsoluteUrl: options.webAbsoluteUrl, itemKey: 'tasks:v1:user'
+    }, 'TaskOrganizationJson', parseTaskDocument);
+    expect(await client.initialize()).toBe(true);
+    const provisioning = server.post.mock.calls.find(([url]) => url.includes('createfieldasxml'));
+    expect(String(provisioning?.[2]?.body)).toContain("Name='TaskOrganizationJson'");
+    const first: TaskDocument = { version: 1, tasks: {
+      'planner:a': { priority: 'high', tags: ['Review'], modified: '1790588000000:device' }
+    } };
+    const saved = await client.write(first);
+    expect(saved.layout).toEqual(first);
+    expect(server.items[0].Title).toBe('tasks:v1:user');
+    const second: TaskDocument = { version: 1, tasks: {
+      'planner:a': { priority: 'low', tags: [], modified: '1790588000001:device' }
+    } };
+    await client.write(second, saved);
+    expect((await client.read())?.layout).toEqual(second);
+    const itemWrite = server.post.mock.calls.filter(([url]) => url.includes('/items')).pop();
+    expect(String(itemWrite?.[2]?.body)).toContain('"TaskOrganizationJson"');
+    expect(String(itemWrite?.[2]?.body)).not.toContain('"LayoutJson"');
+    await expect(client.write(first, saved)).rejects.toMatchObject({ status: 412 });
+    client.dispose();
+  });
+});
 
 async function settle(): Promise<void> {
   for (let i = 0; i < 50; i++) {

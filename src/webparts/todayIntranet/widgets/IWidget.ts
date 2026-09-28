@@ -76,8 +76,8 @@ export interface IWidgetDefinition {
   category: WidgetCategory;
   /** Extra terms the catalogue search box matches on, beyond name and description. */
   keywords?: string[];
-  /** Microsoft Graph permission this widget needs, named in the catalogue. */
-  requiredPermission?: string;
+  /** Microsoft Graph permissions this widget needs, named in the catalogue. */
+  requiredPermission?: string | string[];
   /**
    * Puts a refresh button on the tile. Only set it when the widget actually re-reads
    * something in response to `IWidgetContext.refreshToken`.

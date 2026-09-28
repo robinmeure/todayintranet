@@ -1,0 +1,151 @@
+@use '../../styles/widgetVisuals' as visual;
+
+.tasks {
+  @include visual.text;
+  container-type: inline-size;
+  min-width: 0;
+  color: '[theme:neutralPrimary, default:#323130]';
+}
+
+.filters {
+  display: flex;
+  gap: visual.$space-xs;
+  overflow-x: auto;
+  padding-bottom: visual.$space-sm;
+  margin-bottom: visual.$space-lg;
+  @include visual.scrollbar;
+}
+
+.tasks button,
+.tasks input,
+.tasks select {
+  font: inherit;
+  color: inherit;
+}
+
+.tasks button {
+  cursor: pointer;
+}
+
+.tasks button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.tasks button:focus-visible,
+.tasks input:focus-visible,
+.tasks select:focus-visible,
+.tasks a:focus-visible,
+.tasks summary:focus-visible,
+.scroll:focus-visible {
+  @include visual.focus-ring;
+}
+
+.filters button {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: visual.$space-xs visual.$space-lg;
+  border: 0;
+  border-radius: visual.$radius-sm;
+  background: '[theme:neutralLighter, default:#f3f2f1]';
+}
+
+.filters .activeFilter {
+  color: '[theme:white, default:#ffffff]';
+  background: '[theme:neutralPrimary, default:#323130]';
+}
+
+.scroll {
+  overflow-x: auto;
+  @include visual.scrollbar;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  @include visual.meta;
+}
+
+.table th {
+  text-align: start;
+  padding: visual.$space-sm visual.$space-xs;
+  @include visual.themed-border('[theme:themePrimary, default:#ff6200]', bottom, 2px);
+}
+
+.table td {
+  padding: visual.$space-sm visual.$space-xs;
+  vertical-align: middle;
+  @include visual.themed-border('[theme:neutralTertiary, default:#a19f9d]', bottom);
+}
+
+.table th:nth-child(2) { width: 38%; }
+.table .number { width: 28px; color: '[theme:neutralSecondary, default:#605e5c]'; }
+.table .due { width: 105px; }
+.table .tags { width: 24%; }
+.table a { color: '[theme:link, default:#003080]'; text-underline-offset: 2px; }
+.table a i { font-size: 10px; }
+.relaxed .table td { padding-top: visual.$space-lg; padding-bottom: visual.$space-lg; }
+
+.taskName { display: flex; align-items: center; gap: visual.$space-xs; }
+.title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.priority { position: relative; display: flex; align-items: center; justify-content: center; flex: 0 0 28px; width: 28px; height: 28px; }
+.tasks .priority { color: '[theme:themePrimary, default:#ff6200]'; }
+.priority select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.priority:focus-within { @include visual.focus-ring; }
+.priority:has(select:disabled) { opacity: 0.55; }
+.dragHandle { width: 28px; height: 32px; padding: 0; border: 0; background: transparent; touch-action: none; }
+.tasks .dragHandle { cursor: grab; }
+.tasks .dragHandle:active { cursor: grabbing; }
+.dragging { opacity: 0.45; }
+.table .dropBefore td { box-shadow: inset 0 2px '[theme:themePrimary, default:#ff6200]'; }
+.table .dropAfter td { box-shadow: inset 0 -2px '[theme:themePrimary, default:#ff6200]'; }
+.tagList { display: flex; align-items: center; flex-wrap: wrap; gap: visual.$space-xs; min-width: 0; }
+.chip { display: inline-flex; max-width: 100%; border-radius: visual.$radius-sm; background: '[theme:neutralLighter, default:#f3f2f1]'; }
+.chip button { min-height: 28px; border: 0; background: transparent; padding: 2px 6px; overflow-wrap: anywhere; min-width: 0; text-align: start; }
+.chip button:last-child { flex: 0 0 24px; padding: 2px 4px; font-size: 10px; }
+.addTag { min-height: 28px; border: 0; background: transparent; padding: 2px 4px; white-space: nowrap; }
+.addTag i { font-size: 10px; }
+.tagInput { box-sizing: border-box; min-width: 0; width: 100%; max-width: 180px; min-height: 28px; padding: 2px 6px; border-radius: visual.$radius-sm; background: '[theme:white, default:#ffffff]'; @include visual.themed-border; }
+.srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.tasks .overdue { color: '[theme:errorText, default:#a4262c]'; }
+.overdueLabel { display: block; font-weight: 600; }
+.mobileDue { display: none; }
+.status { @include visual.meta; color: '[theme:neutralSecondary, default:#605e5c]'; }
+.notice { @include visual.meta; padding: visual.$space-sm; margin-block: visual.$space-sm; background: '[theme:warningBackground, default:#fff4ce]'; }
+.notice button { background: transparent; border: 0; text-decoration: underline; }
+.organization { @include visual.meta; margin-top: visual.$space-md; }
+.organization summary { cursor: pointer; }
+.editorActions { display: flex; flex-wrap: wrap; gap: visual.$space-sm; }
+.editorActions button { min-height: 32px; border-radius: visual.$radius-sm; background: '[theme:white, default:#ffffff]'; @include visual.themed-border; }
+.settings { display: flex; flex-wrap: wrap; gap: visual.$space-md; @include visual.themed-border; }
+
+@container (max-width: 540px) {
+  .table tr { display: grid; grid-template-columns: 36px minmax(0, 1fr) 90px; }
+  .table th:nth-child(2),
+  .table th:nth-child(3) { width: auto; }
+  .table td { min-width: 0; border-bottom: 0; }
+  .table tbody tr { @include visual.themed-border('[theme:neutralTertiary, default:#a19f9d]', bottom); }
+  .table .tags { width: auto; grid-column: 2 / -1; padding-top: 0; }
+  .table th.tags,
+  .table .due { display: none; }
+  .mobileDue { display: block; margin-inline-start: 32px; }
+  .table .dropBefore { box-shadow: inset 0 2px '[theme:themePrimary, default:#ff6200]'; }
+  .table .dropAfter { box-shadow: inset 0 -2px '[theme:themePrimary, default:#ff6200]'; }
+  .table .dropBefore td,
+  .table .dropAfter td { box-shadow: none; }
+}
+
+@container (max-width: 350px) {
+  .table tr { grid-template-columns: 32px minmax(0, 1fr); }
+  .table th:nth-child(3) { display: none; }
+  .table td:nth-child(3) { grid-column: 2; padding-top: 0; }
+  .title { white-space: normal; overflow-wrap: anywhere; }
+  .filters button { padding-inline: visual.$space-sm; }
+}
+
+@media (forced-colors: active) {
+  .filters .activeFilter { outline: 2px solid Highlight; outline-offset: -2px; }
+  .dropBefore { border-top: 2px solid Highlight; }
+  .dropAfter { border-bottom: 2px solid Highlight; }
+}

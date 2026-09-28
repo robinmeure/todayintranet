@@ -223,7 +223,8 @@ export interface IViewSettingProps {
  * choosing "Gallery" or "Adaptive card" works the same way on every tile.
  */
 export const ViewSetting: React.FunctionComponent<IViewSettingProps> = ({ context, views, fallback }) => {
-  const current: WidgetItemsView = viewSetting(context, fallback);
+  const stored: WidgetItemsView = viewSetting(context, fallback);
+  const current: WidgetItemsView = views.indexOf(stored) >= 0 ? stored : fallback;
   const labelId: string = `widget-view-${context.instanceId}`;
   const options: IWidgetItemsViewInfo[] = [];
   views.forEach((id) => {

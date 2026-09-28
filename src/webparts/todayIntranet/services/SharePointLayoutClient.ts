@@ -6,7 +6,6 @@ import { IServerLayoutVersion } from './ILayoutCache';
 import { LayoutStoreReason } from './ILayoutStore';
 
 export const LAYOUT_LIST_TITLE: string = 'TodayIntranetLayouts';
-const FIELD: string = 'LayoutJson';
 const HEADERS: Record<string, string> = {
   Accept: 'application/json;odata=minimalmetadata',
   'Content-type': 'application/json;odata=nometadata',
@@ -26,8 +25,8 @@ export class LayoutStorageError extends Error {
   }
 }
 
-export interface IRemoteLayout extends IServerLayoutVersion {
-  layout: IDashboardLayout;
+export interface IRemoteLayout<T = IDashboardLayout> extends IServerLayoutVersion {
+  layout: T;
 }
 
 export interface ISharePointLayoutClientOptions {
@@ -54,13 +53,21 @@ function permissions(value: unknown): SPPermission {
 }
 
 /** All requests stay in the hosting web and run with the signed-in user's permissions. */
-export class SharePointLayoutClient {
+export class SharePointDocumentClient<T> {
   private _initializing: Promise<boolean> | undefined;
   private _disposed: boolean = false;
   public recoveryRaw: string | undefined;
   public recoveryVersion: IServerLayoutVersion | undefined;
 
-  public constructor(private readonly _options: ISharePointLayoutClientOptions) {}
+  public constructor(
+    private readonly _options: ISharePointLayoutClientOptions,
+    private readonly _field: string,
+    private readonly _parse: (json: string) => T
+  ) {
+    if (!/^[A-Za-z][A-Za-z0-9]*$/.test(_field)) {
+      throw new Error('Invalid SharePoint document field.');
+    }
+  }
 
   public prime(writable: boolean): void {
     this._initializing = Promise.resolve(writable);
@@ -91,7 +98,7 @@ export class SharePointLayoutClient {
     const writable = access.hasAllPermissions(SPPermission.addListItems, SPPermission.editListItems);
     let fields = await this._fields();
     let configurationChanged = false;
-    let layoutField = fields.filter((field) => field.InternalName === FIELD)[0];
+    let layoutField = fields.filter((field) => field.InternalName === this._field)[0];
     const titleField = fields.filter((field) => field.InternalName === 'Title')[0];
     if (!titleField || titleField.TypeAsString !== 'Text') {
       throw new LayoutStorageError('The layouts list needs a compatible Title text column.', 'configuration');
@@ -100,20 +107,20 @@ export class SharePointLayoutClient {
       try {
         await this._request(`${this.listUrl}/fields/createfieldasxml`, {
           parameters: {
-            SchemaXml: `<Field Type='Note' DisplayName='${FIELD}' Name='${FIELD}' StaticName='${FIELD}' RichText='FALSE' />`,
+            SchemaXml: `<Field Type='Note' DisplayName='${this._field}' Name='${this._field}' StaticName='${this._field}' RichText='FALSE' />`,
             Options: 9
           }
         });
         configurationChanged = true;
       } catch (error) {
         fields = await this._fields();
-        layoutField = fields.filter((field) => field.InternalName === FIELD)[0];
+        layoutField = fields.filter((field) => field.InternalName === this._field)[0];
         if (!layoutField) {
           throw error;
         }
       }
     } else if (layoutField && !this._validLayoutField(layoutField)) {
-      throw new LayoutStorageError('The LayoutJson column is incompatible. An owner must preserve its data and repair the schema.', 'configuration');
+      throw new LayoutStorageError(`The ${this._field} column is incompatible. An owner must preserve its data and repair the schema.`, 'configuration');
     }
     const expected: Record<string, boolean | number> = { Hidden: true, OnQuickLaunch: false, ReadSecurity: 2, WriteSecurity: 2, EnableAttachments: false };
     if (Object.keys(expected).some((key) => list[key] !== expected[key]) && owner) {
@@ -129,7 +136,7 @@ export class SharePointLayoutClient {
     // metadata reads after this client actually changed the configuration.
     const verified = configurationChanged ? await this._probe() : list;
     const verifiedFields = configurationChanged ? await this._fields() : fields;
-    layoutField = verifiedFields.filter((field) => field.InternalName === FIELD)[0];
+    layoutField = verifiedFields.filter((field) => field.InternalName === this._field)[0];
     const verifiedTitle = verifiedFields.filter((field) => field.InternalName === 'Title')[0];
     if (!verified || Object.keys(expected).some((key) => verified[key] !== expected[key]) ||
         !layoutField || !this._validLayoutField(layoutField) || verifiedTitle?.Indexed !== true) {
@@ -194,9 +201,9 @@ export class SharePointLayoutClient {
     return data.value.map(object);
   }
 
-  public async read(): Promise<IRemoteLayout | undefined> {
+  public async read(): Promise<IRemoteLayout<T> | undefined> {
     const filter = encodeURIComponent(`Title eq '${this._options.itemKey.replace(/'/g, "''")}'`);
-    const response = await this._request(`${this.listUrl}/items?$select=Id,${FIELD}&$filter=${filter}&$top=2`);
+    const response = await this._request(`${this.listUrl}/items?$select=Id,${this._field}&$filter=${filter}&$top=2`);
     const data = object(await response.json());
     if (!Array.isArray(data.value)) {
       throw new LayoutStorageError('SharePoint returned an invalid list response.', 'configuration');
@@ -221,8 +228,8 @@ export class SharePointLayoutClient {
     return this._toRemote(item, id, etag);
   }
 
-  private async _readById(id: number): Promise<IRemoteLayout> {
-    const response = await this._request(`${this.listUrl}/items(${id})?$select=Id,${FIELD}`);
+  private async _readById(id: number): Promise<IRemoteLayout<T>> {
+    const response = await this._request(`${this.listUrl}/items(${id})?$select=Id,${this._field}`);
     const item = object(await response.json());
     const etag = response.headers.get('ETag') ?? item['odata.etag'] ?? item['@odata.etag'];
     if (typeof etag !== 'string' || !etag || etag === '*') {
@@ -231,29 +238,46 @@ export class SharePointLayoutClient {
     return this._toRemote(item, id, etag);
   }
 
-  private _toRemote(item: Record<string, unknown>, id: number, etag: string): IRemoteLayout {
+  private _toRemote(item: Record<string, unknown>, id: number, etag: string): IRemoteLayout<T> {
     this.recoveryVersion = { itemId: id, etag };
-    this.recoveryRaw = typeof item[FIELD] === 'string' ? item[FIELD] : JSON.stringify(item);
-    if (typeof item[FIELD] !== 'string') {
+    const raw = item[this._field];
+    this.recoveryRaw = typeof raw === 'string' ? raw : JSON.stringify(item);
+    if (typeof raw !== 'string') {
       throw new LayoutStorageError('The saved SharePoint layout is empty or invalid. Export it before resetting.', 'invalid-data');
     }
     try {
-      return { itemId: id, etag, layout: parseLayout(item[FIELD]) };
+      return { itemId: id, etag, layout: this._parse(raw) };
     } catch {
       throw new LayoutStorageError('The saved SharePoint layout is invalid or uses an unsupported version. Export it before resetting.', 'invalid-data');
     }
   }
 
-  public async write(layout: IDashboardLayout, version?: IServerLayoutVersion): Promise<IRemoteLayout> {
-    const body = { Title: this._options.itemKey, [FIELD]: JSON.stringify(layout) };
+  private _merge(layout: T, version: IServerLayoutVersion): Promise<SPHttpClientResponse> {
+    return this._request(`${this.listUrl}/items(${version.itemId})`,
+      { Title: this._options.itemKey, [this._field]: JSON.stringify(layout) },
+      { 'X-HTTP-Method': 'MERGE', 'IF-MATCH': version.etag });
+  }
+
+  /** Acknowledged update without a verification GET. Missing ETags must be read before a later update. */
+  public async update(layout: T, version: IServerLayoutVersion): Promise<IServerLayoutVersion | undefined> {
+    this._parse(JSON.stringify(layout));
+    if (!version.etag.trim() || version.etag.trim() === '*') {
+      throw new LayoutStorageError('A specific SharePoint version is required for safe updates.', 'configuration');
+    }
+    const response = await this._merge(layout, version);
+    const etag = response.headers.get('ETag')?.trim();
+    return etag && etag !== '*' ? { itemId: version.itemId, etag } : undefined;
+  }
+
+  public async write(layout: T, version?: IServerLayoutVersion): Promise<IRemoteLayout<T>> {
+    this._parse(JSON.stringify(layout));
+    const body = { Title: this._options.itemKey, [this._field]: JSON.stringify(layout) };
     let response: SPHttpClientResponse;
     try {
-      response = await this._request(
-        version ? `${this.listUrl}/items(${version.itemId})` : `${this.listUrl}/items`,
-        body, version ? { 'X-HTTP-Method': 'MERGE', 'IF-MATCH': version.etag } : undefined
-      );
+      response = version ? await this._merge(layout, version) : await this._request(`${this.listUrl}/items`, body);
     } catch (error) {
-      if (!version && error instanceof LayoutStorageError && error.reason === 'unavailable') {
+      if (!version && error instanceof LayoutStorageError && error.reason === 'unavailable' &&
+          error.status !== 429 && error.status !== 503) {
         // The server may have accepted a create whose response was lost.
         const found = await this.read();
         if (found && JSON.stringify(found.layout) === JSON.stringify(layout)) {
@@ -328,5 +352,11 @@ export class SharePointLayoutClient {
         retryAfterMs !== undefined && Number.isFinite(retryAfterMs) ? retryAfterMs : undefined);
     }
     return response;
+  }
+}
+
+export class SharePointLayoutClient extends SharePointDocumentClient<IDashboardLayout> {
+  public constructor(options: ISharePointLayoutClientOptions) {
+    super(options, 'LayoutJson', parseLayout);
   }
 }

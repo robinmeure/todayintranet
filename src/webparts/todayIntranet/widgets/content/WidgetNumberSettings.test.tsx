@@ -15,7 +15,6 @@ import type { WebPartContext } from '@microsoft/sp-webpart-base';
 import { IWidgetContext } from '../IWidget';
 import { numberSetting, NumberSetting } from './WidgetSettings';
 import { MailWidget } from '../graph/MailWidget';
-import { TasksWidget } from '../graph/TasksWidget';
 import { NewsWidget } from '../search/NewsWidget';
 import { SearchResultsWidget } from '../search/SearchResultsWidget';
 import { useGraphData } from '../graph/useGraphData';
@@ -133,8 +132,7 @@ describe('widget request numeric bounds', () => {
   };
 
   describe.each([
-    ['Mail', MailWidget, 6, 0],
-    ['Tasks', TasksWidget, 6, 10]
+    ['Mail', MailWidget, 6, 0]
   ] as const)('%s Graph request', (_name, Widget, fallback, overfetch) => {
     it.each([1e200, -5, 3.8, undefined])('bounds a persisted count before calling Graph (%p)', async (maxItems) => {
       Widget({ context: contextFor({ maxItems }) });
