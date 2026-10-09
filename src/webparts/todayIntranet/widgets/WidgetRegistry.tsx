@@ -88,7 +88,7 @@ const definitions: IWidgetDefinition[] = [
     supportedViews: ['links', ...ALL_ITEM_VIEWS],
     defaultView: MY_LINKS_DEFAULT_VIEW,
     defaultSize: { w: 12, h: 9 },
-    minSize: { w: 12, h: 9 },
+    minSize: { w: 3, h: 4 },
     render: (context) => <MyLinksWidget context={context} />,
     renderSettings: (context) => <MyLinksWidgetSettings context={context} />
   },

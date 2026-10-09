@@ -1,23 +1,19 @@
 import * as React from 'react';
 import { IWidgetContext } from '../IWidget';
 import {
-  NumberSetting,
-  SettingsSurface,
-  TextSetting,
-  WidgetEmpty,
   WidgetErrorMessage,
   WidgetFilteredItems,
   WidgetItemsView,
+  WidgetNotice,
   numberSetting,
   textSetting,
   viewSetting
 } from '../content';
-import { DEFAULT_LINKS_SETTING, parseLinksSetting } from './linksSettings';
+import { DEFAULT_ITEMS_PER_PAGE, DEFAULT_LINKS_SETTING, ITEMS_PER_PAGE_BOUNDS, parseLinksSetting } from './linksSettings';
+export { MyLinksWidgetSettings } from './MyLinksWidgetSettings';
 
 export { parseLinksSetting } from './linksSettings';
 
-const DEFAULT_ITEMS_PER_PAGE: number = 9;
-const ITEMS_PER_PAGE_BOUNDS = { min: 3, max: 12 };
 export const MY_LINKS_DEFAULT_VIEW: WidgetItemsView = 'links';
 
 export const MyLinksWidget: React.FunctionComponent<{ context: IWidgetContext }> = ({ context }) => {
@@ -30,37 +26,26 @@ export const MyLinksWidget: React.FunctionComponent<{ context: IWidgetContext }>
     }} />;
   }
   if (!parsed.links?.length) {
-    return <WidgetEmpty iconName="Link"
-      text="No links configured. Edit the dashboard and open My links settings to add your organization's HTTPS links." />;
+    return <WidgetNotice title="No links added"
+      description={"Looks like you haven't added any links yet, or you've removed them all. " +
+        'Feel free to customize this section with the links and resources you use most often.'}
+      actionText="Add link" onAction={context.openSettings ? () => context.openSettings?.('add') : undefined} />;
   }
   return (
     <WidgetFilteredItems
       ariaLabel="My links"
       view={viewSetting(context, MY_LINKS_DEFAULT_VIEW)}
       itemsPerPage={itemsPerPage}
-      items={parsed.links.map((link, index) => ({
+      emptyState={<WidgetNotice title="No links found" />}
+      items={(parsed.links ?? []).map((link, index) => ({
         key: String(index),
         title: link.title,
         href: link.url,
         description: link.description,
         iconName: link.iconName || 'Link',
         tone: link.tone ?? 'accent',
-        badge: link.badge ? { text: link.badge, iconName: 'Lock', tone: 'accent' } : undefined
+        badge: link.badge ? { text: link.badge, iconName: 'Lock', tone: 'neutral' } : undefined
       }))}
     />
   );
 };
-
-export const MyLinksWidgetSettings: React.FunctionComponent<{ context: IWidgetContext }> = ({ context }) => (
-  <SettingsSurface description={
-    'Links are personal to this tile. The defaults are sample links to public resources; replace them or enter [] to start empty. ' +
-    'Add a JSON array of objects with title and an absolute HTTPS url. ' +
-    'Optional fields: description, iconName (Fluent UI), badge (for example VPN), and tone ' +
-    '(neutral, accent, success, warning, danger). Only use destinations and VPN labels verified by your organization.'
-  }>
-    <NumberSetting context={context} settingKey="itemsPerPage" label="Links per page"
-      fallback={DEFAULT_ITEMS_PER_PAGE} {...ITEMS_PER_PAGE_BOUNDS} />
-    <TextSetting context={context} settingKey="links" label="Links (JSON)" fallback={DEFAULT_LINKS_SETTING}
-      multiline={true} rows={16} commitOn="blur" />
-  </SettingsSurface>
-);

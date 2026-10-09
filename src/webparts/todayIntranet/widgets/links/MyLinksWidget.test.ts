@@ -1,21 +1,8 @@
 import { DEFAULT_LINKS_SETTING, parseLinksSetting } from './linksSettings';
 
 describe('My links settings', () => {
-  it('provides valid, explicitly labelled samples with matching public destinations and no badges', () => {
-    const parsed = parseLinksSetting(DEFAULT_LINKS_SETTING);
-    expect(parsed.error).toBeUndefined();
-    expect(parsed.links?.map(({ title, url }) => ({ title, url }))).toEqual([
-      { title: 'Microsoft Learn', url: 'https://learn.microsoft.com/' },
-      { title: 'Microsoft Support', url: 'https://support.microsoft.com/' },
-      { title: 'MDN Web Docs', url: 'https://developer.mozilla.org/' },
-      { title: 'GitHub Docs', url: 'https://docs.github.com/' },
-      { title: 'Stack Overflow', url: 'https://stackoverflow.com/' },
-      { title: 'Wikipedia', url: 'https://www.wikipedia.org/' }
-    ]);
-    parsed.links?.forEach((link) => {
-      expect(link.description).toMatch(/^Sample: /);
-      expect(link.badge).toBeUndefined();
-    });
+  it('starts with no personalized links rather than displaying sample destinations', () => {
+    expect(parseLinksSetting(DEFAULT_LINKS_SETTING)).toEqual({ links: [] });
   });
 
   it('accepts valid HTTPS links and trims optional text', () => {

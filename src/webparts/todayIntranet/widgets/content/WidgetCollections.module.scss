@@ -8,7 +8,7 @@
 .collectionStack {
   display: flex;
   flex-direction: column;
-  gap: visual.$space-lg;
+  gap: visual.$space-md;
   min-width: 0;
 }
 
@@ -144,6 +144,15 @@
   color: '[theme:neutralPrimary, default:#323130]';
 }
 
+.linkTitle {
+  font-size: visual.$text-size;
+  line-height: visual.$text-line-height;
+}
+
+.linkDescription {
+  @include visual.meta;
+}
+
 .titleIcon {
   margin-inline-start: visual.$space-sm;
   font-size: 12px;
@@ -185,8 +194,8 @@
 }
 
 .searchSurface {
-  padding: 24px;
-  border-radius: 24px;
+  padding: visual.$space-lg;
+  border-radius: visual.$radius-xl;
   background: '[theme:white, default:#ffffff]';
 }
 
@@ -194,8 +203,8 @@
   display: flex;
   align-items: center;
   gap: visual.$space-sm;
-  max-width: 400px;
-  min-height: 44px;
+  max-width: 270px;
+  min-height: 32px;
   padding: 0 visual.$space-md;
   border-radius: visual.$radius-lg;
   background: '[theme:neutralLighter, default:#f3f2f1]';
@@ -214,20 +223,20 @@
 .linksGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 20px;
+  gap: visual.$space-lg;
 }
 
 .linkCard {
   border: 0;
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr) 20px;
+  grid-template-columns: 40px minmax(0, 1fr) 16px;
   align-items: center;
-  gap: visual.$space-lg;
+  gap: visual.$space-md;
   width: 100%;
-  min-height: 116px;
+  min-height: 80px;
   box-sizing: border-box;
-  padding: visual.$space-lg;
-  border-radius: 24px;
+  padding: visual.$space-md;
+  border-radius: visual.$radius-xl;
   font: inherit;
   text-align: start;
   text-decoration: none;
@@ -245,10 +254,10 @@ button.linkCard:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 64px;
-  height: 64px;
-  border-radius: 18px;
-  font-size: 30px;
+  width: 40px;
+  height: 40px;
+  border-radius: visual.$radius-lg;
+  font-size: 24px;
   background: var(--widget-tone-background);
   color: var(--widget-tone-accent);
 }
@@ -260,7 +269,9 @@ button.linkCard:hover {
   gap: visual.$space-xs;
   max-width: 100%;
   box-sizing: border-box;
-  padding: 2px visual.$space-sm;
+  padding: 0 visual.$space-xs;
+  font-size: 10px;
+  line-height: 16px;
   border-radius: visual.$radius-sm;
   overflow-wrap: anywhere;
   color: var(--widget-tone-text);
@@ -279,8 +290,8 @@ button.linkCard:hover {
 }
 
 .pageButton {
-  width: 40px;
-  height: 40px;
+  width: 28px;
+  height: 28px;
   border: 0;
   border-radius: 50%;
   font: inherit;
@@ -327,7 +338,7 @@ button.linkCard:hover {
   border: 0;
 }
 
-@container (max-width: 850px) {
+@container (max-width: 640px) {
   .linksGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -344,7 +355,7 @@ button.linkCard:hover {
   }
 }
 
-@container (max-width: 540px) {
+@container (max-width: 420px) {
   .linksGrid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -356,14 +367,14 @@ button.linkCard:hover {
   }
 
   .linkCard {
-    grid-template-columns: 48px minmax(0, 1fr) 16px;
+    grid-template-columns: 40px minmax(0, 1fr) 16px;
     gap: visual.$space-sm;
     padding: visual.$space-md;
   }
 
   .linkIcon {
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
     font-size: 24px;
   }
 }

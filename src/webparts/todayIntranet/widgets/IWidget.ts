@@ -21,6 +21,9 @@ export interface IWidgetContext {
   refreshToken: number;
   /** Persist new settings for this widget instance. */
   updateSettings(settings: Record<string, unknown>): void;
+  /** Host-owned entry point into authoring, including from a widget's empty state. */
+  openSettings?(action?: 'add'): void;
+  settingsAction?: 'add';
 }
 
 /**

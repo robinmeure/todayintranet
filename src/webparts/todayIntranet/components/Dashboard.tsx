@@ -639,6 +639,8 @@ const DashboardSession: React.FunctionComponent<IDashboardProps> = (props) => {
                   onRemove={handleRemove}
                   onNudge={handleNudge}
                   onUpdateTitle={handleUpdateTitle}
+                  canEdit={canEdit}
+                  onRequestEdit={() => setIsEditing(true)}
                 />
               </div>
             );

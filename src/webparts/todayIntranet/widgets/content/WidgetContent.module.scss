@@ -48,6 +48,39 @@
 
 /* --------------------------------------------------------------- states ---- */
 
+.noticeSurface {
+  @include visual.text;
+  padding: visual.$space-lg;
+  border-radius: visual.$radius-xl;
+  background: '[theme:white, default:#ffffff]';
+}
+
+.notice {
+  @include visual.themed-border('[theme:themePrimary, default:#0078d4]');
+  display: flex;
+  align-items: flex-start;
+  gap: visual.$space-xs;
+  padding: visual.$space-sm;
+  max-width: 560px;
+  width: fit-content;
+  border-radius: 2px;
+}
+
+.notice > i {
+  margin-top: 3px;
+  color: '[theme:themeDark, default:#005a9e]';
+}
+
+.notice > button {
+  align-self: center;
+  flex-shrink: 0;
+  margin-inline-start: visual.$space-sm;
+}
+
+@media (max-width: 420px) {
+  .notice { flex-wrap: wrap; }
+}
+
 .centered {
   @include visual.text;
   display: flex;

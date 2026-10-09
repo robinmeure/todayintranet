@@ -2,7 +2,7 @@ import * as React from 'react';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { Link } from '@fluentui/react/lib/Link';
 import { Icon } from '@fluentui/react/lib/Icon';
-import { ActionButton } from '@fluentui/react/lib/Button';
+import { ActionButton, DefaultButton } from '@fluentui/react/lib/Button';
 import { IWidgetEmptyState, IWidgetError } from './IWidgetContent';
 import styles from './WidgetContent.module.scss';
 
@@ -60,6 +60,24 @@ export const WidgetEmpty: React.FunctionComponent<IWidgetEmptyState> = (props) =
     </div>
   );
 };
+
+/** Informational empty state in a collection's own content surface. */
+export const WidgetNotice: React.FunctionComponent<{
+  title: string; description?: string; actionText?: string; onAction?: () => void;
+}> = ({ title, description, actionText, onAction }) => (
+  <div className={styles.noticeSurface}>
+    <div className={styles.notice} role="status">
+      <Icon iconName="InfoSolid" aria-hidden />
+      <div>
+        <strong>{title}</strong>
+        {description && <div>{description}</div>}
+      </div>
+      {actionText && <DefaultButton text={actionText} iconProps={{ iconName: 'Add' }}
+        disabled={!onAction} onClick={onAction}
+        styles={{ root: { borderRadius: 20, minWidth: 80, height: 28, padding: '0 8px' } }} />}
+    </div>
+  </div>
+);
 
 export interface IWidgetErrorProps {
   error: IWidgetError;

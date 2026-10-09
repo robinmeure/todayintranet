@@ -679,14 +679,34 @@ are fabricated when the required destination or action is unavailable.
 
 ### Configuring My links
 
-Unconfigured instances show six sample links: Microsoft Learn, Microsoft Support, MDN Web Docs,
-GitHub Docs, Stack Overflow and Wikipedia. Their descriptions explicitly identify them as samples,
-and none carry VPN badges. These defaults are also shown in the JSON editor, so you can replace
-them easily; they are not automatically written to your saved settings. Existing saved links are
-unchanged, and a saved empty array (`[]`) still shows setup guidance rather than restoring samples.
+My links follows the supplied viewing and authoring designs. A new instance starts empty with a
+**No links added** information box, explanatory text and **Add link** action; no sample destinations
+are inserted. The action enters dashboard edit mode and opens the add form in the standard widget settings flyout.
+Existing saved destinations remain unchanged. The default view shows compact shortcut cards in
+three columns (two or one on narrower widgets), with optional VPN tags, descriptions and chevrons,
+a separate search surface and pagination.
 
-In **Edit dashboard > My links settings**, edit the array in **Links (JSON)**. For example (replace
-the example address with your real approved destination):
+In **Edit dashboard**, use the widget's resize handle to change its width and height, or focus its
+title bar and use **Shift+arrow keys**. My links starts at 12 columns by 9 rows and can shrink to
+3 columns by 4 rows using the same grid resizing as other widgets. Narrower layouts adapt the
+shortcut columns; shorter widgets scroll their content. Resized dimensions persist with the
+dashboard layout when you select **Done**.
+
+In **Edit dashboard > My links settings**, the shared widget settings flyout shows a searchable list of favorite links.
+**Add a new link** and each pencil button open separate add/edit screens containing **Name**,
+**VPN OFF/ON**, **Link** and multiline **Description** fields. **Add link / Update** validate before
+saving. **Cancel**, the back arrow and flyout dismissal discard unfinished form edits.
+The heart button removes a favorite, and **Delete** is also available on the edit screen; both ask
+for confirmation. Drag rows to reorder, or focus a row and press **Alt+Up / Alt+Down** for keyboard
+reordering. Search in settings filters by name/URL; reordering filtered rows updates the complete
+saved list. The supplied design's category label is retained, but links do not have category data.
+
+**Advanced settings** contains **Sort A-Z / Sort Z-A**, page size and the **Links (JSON)** editor
+for bulk changes and optional fields. The standard shared Title/View controls remain above the
+widget-specific settings, exactly as for other widgets. Advanced settings are collapsed so the
+main authoring screens retain the design's compact appearance.
+Valid drafts save on blur or settings dismissal; invalid drafts show an error and never overwrite
+the saved links. For example (replace the example address with your real approved destination):
 
 ```json
 [
@@ -706,13 +726,19 @@ the example address with your real approved destination):
 organization requires it. Supported tones are `neutral`, `accent`, `success`, `warning` and `danger`;
 the initial color names (blue, purple, green, orange, red) remain readable and map to semantic tones.
 Up to 100 links are supported, with 3–12 links per page (default 9). Invalid JSON or entries show an
-explicit error; an empty array restores the setup state. The widget cannot verify that an otherwise
+explicit error; an empty array shows **No links added**. The widget cannot verify that an otherwise
 valid HTTPS URL is your organization's correct destination.
 
-Search checks titles, descriptions and badges across all pages and returns to page one when changed.
+Search checks titles, URLs, descriptions and badges case-insensitively across all pages and returns
+to page one when changed. Empty search results show **No links found** in an information box,
+while keeping the search visible. Links open in a new
+browser tab in every view.
 Search and page selection stay local to each instance. Link configuration, view and page-size settings
 use the existing host persistence path, preserving unrelated settings. Existing explicitly saved
 destinations are not overwritten; review any links previously copied from the initial sample set.
+Links stay in the `custom.myLinks` instance's `settings.links` within the user's dashboard JSON,
+with the existing local checkpoint / **Done** publishing behavior. They are fetched with that JSON
+before widgets mount, so the existing dashboard loader covers loading; there is no separate links request.
 
 ### Adding a widget
 
@@ -733,6 +759,9 @@ destinations are not overwritten; review any links previously copied from the in
    link out to. Set `contentSurface: 'none'` only when shared content already provides its own surfaces.
 4. Optionally implement `renderSettings`, using the typed fields in `widgets/content` — that is what
    puts a gear icon and settings flyout on the tile.
+   The host supplies `context.openSettings` and an optional initial `settingsAction` for widgets
+   with an empty-state setup action. Widget-specific editors still use the same
+   `renderSettings(context)` registration and shared settings callout.
 
 Widgets are wrapped in an error boundary, so a widget that throws shows a contained message instead
 of blanking the dashboard.

@@ -59,16 +59,18 @@ interface IFilteredItemsProps {
   view: WidgetItemsView;
   itemsPerPage: number;
   ariaLabel: string;
+  emptyText?: string;
+  emptyState?: React.ReactNode;
 }
 
 export const WidgetFilteredItems: React.FunctionComponent<IFilteredItemsProps> = ({
-  items, view, itemsPerPage, ariaLabel
+  items, view, itemsPerPage, ariaLabel, emptyText, emptyState
 }) => {
   const [query, setQuery] = React.useState('');
   const [page, setPage] = React.useState(1);
   const needle = query.trim().toLowerCase();
   const filtered = items.filter((item) =>
-    [item.title, item.description, item.badge?.text, ...(item.meta ?? [])].filter(Boolean).join(' ').toLowerCase()
+    [item.title, item.href, item.description, item.badge?.text, ...(item.meta ?? [])].filter(Boolean).join(' ').toLowerCase()
       .indexOf(needle) >= 0
   );
   const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
@@ -102,7 +104,7 @@ export const WidgetFilteredItems: React.FunctionComponent<IFilteredItemsProps> =
           view={view}
           ariaLabel={ariaLabel}
         />
-      ) : <WidgetEmpty iconName="Search" text={`No links match "${query.trim()}".`} />}
+      ) : emptyState ?? <WidgetEmpty iconName="Search" text={emptyText ?? `No links match "${query.trim()}".`} />}
       {totalPages > 1 && (
         <nav className={styles.pagination} aria-label="Links pages">
           <button type="button" className={styles.pageButton} disabled={currentPage === 1}

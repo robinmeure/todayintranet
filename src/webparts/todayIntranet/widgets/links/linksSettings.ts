@@ -1,5 +1,8 @@
 import { WidgetTone } from '../content/IWidgetContent';
 
+export const DEFAULT_ITEMS_PER_PAGE: number = 9;
+export const ITEMS_PER_PAGE_BOUNDS = { min: 3, max: 12 };
+
 export interface IMyLink {
   title: string;
   url: string;
@@ -9,52 +12,7 @@ export interface IMyLink {
   tone?: WidgetTone;
 }
 
-const SAMPLE_LINKS: IMyLink[] = [
-  {
-    title: 'Microsoft Learn',
-    url: 'https://learn.microsoft.com/',
-    description: 'Sample: training and documentation.',
-    iconName: 'Education',
-    tone: 'accent'
-  },
-  {
-    title: 'Microsoft Support',
-    url: 'https://support.microsoft.com/',
-    description: 'Sample: product help and guidance.',
-    iconName: 'Help',
-    tone: 'success'
-  },
-  {
-    title: 'MDN Web Docs',
-    url: 'https://developer.mozilla.org/',
-    description: 'Sample: web development references.',
-    iconName: 'Code',
-    tone: 'warning'
-  },
-  {
-    title: 'GitHub Docs',
-    url: 'https://docs.github.com/',
-    description: 'Sample: guides for working with GitHub.',
-    iconName: 'Documentation',
-    tone: 'accent'
-  },
-  {
-    title: 'Stack Overflow',
-    url: 'https://stackoverflow.com/',
-    description: 'Sample: programming questions and answers.',
-    iconName: 'Chat',
-    tone: 'warning'
-  },
-  {
-    title: 'Wikipedia',
-    url: 'https://www.wikipedia.org/',
-    description: 'Sample: explore the free encyclopedia.',
-    iconName: 'Globe',
-    tone: 'success'
-  }
-];
-
-export const DEFAULT_LINKS_SETTING: string = JSON.stringify(SAMPLE_LINKS, undefined, 2);
+export const DEFAULT_LINKS_SETTING: string = '[]';
 
 export type LinksSettingResult = { links: IMyLink[]; error?: undefined } | { error: string; links?: undefined };
 

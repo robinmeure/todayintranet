@@ -27,6 +27,8 @@ export interface IWidgetFrameProps {
   onRemove(instanceId: string): void;
   onNudge(instanceId: string, nudge: INudge): void;
   onUpdateTitle(instanceId: string, title: string): void;
+  onRequestEdit?(): void;
+  canEdit?: boolean;
 }
 
 const ARROW_MOVES: Record<string, INudge> = {
@@ -50,23 +52,24 @@ const ACTION_BUTTON_STYLES: { root: { width: number; height: number } } = {
 
 /** Shared chrome (title bar, drag handle, refresh, settings, remove) around every widget. */
 export const WidgetFrame: React.FunctionComponent<IWidgetFrameProps> = (props) => {
-  const { instance, widgetContext, isEditing, onRemove, onNudge, onUpdateTitle } = props;
+  const { instance, widgetContext, isEditing, onRemove, onNudge, onUpdateTitle, onRequestEdit, canEdit = true } = props;
   const definition = WidgetRegistry.get(instance.type);
   const defaultName = definition ? definition.displayName : instance.type;
   const name = instance.title?.trim() || defaultName;
 
   const [isSettingsOpen, setIsSettingsOpen] = React.useState<boolean>(false);
   const [refreshToken, setRefreshToken] = React.useState<number>(0);
+  const [settingsAction, setSettingsAction] = React.useState<'add'>();
   const settingsButtonId = `widget-settings-${instance.id}`;
 
   const views = definition?.supportedViews ?? [];
   const hasViewPicker = views.length > 1;
 
   React.useLayoutEffect(() => {
-    if (!isEditing) {
+    if (!isEditing || !canEdit) {
       setIsSettingsOpen(false);
     }
-  }, [isEditing]);
+  }, [isEditing, canEdit]);
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
     // Ignore keys aimed at the buttons inside the header.
@@ -83,7 +86,14 @@ export const WidgetFrame: React.FunctionComponent<IWidgetFrameProps> = (props) =
 
   // The widget sees the refresh as a changed dependency, so it re-reads its data
   // without the frame having to know anything about where that data comes from.
-  const context: IWidgetContext = { ...widgetContext, refreshToken };
+  const context: IWidgetContext = {
+    ...widgetContext, refreshToken, settingsAction,
+    openSettings: canEdit ? (action) => {
+      onRequestEdit?.();
+      setSettingsAction(action);
+      setIsSettingsOpen(true);
+    } : undefined
+  };
 
   const linkSource = definition?.footerLink;
   const experienceLink = typeof linkSource === 'function' ? linkSource(context) : linkSource;
@@ -134,7 +144,7 @@ export const WidgetFrame: React.FunctionComponent<IWidgetFrameProps> = (props) =
               title={`${name} settings`}
               ariaLabel={`${name} settings`}
               checked={isSettingsOpen}
-              onClick={() => setIsSettingsOpen((open) => !open)}
+              onClick={() => { setSettingsAction(undefined); setIsSettingsOpen((open) => !open); }}
               onMouseDown={(e) => e.stopPropagation()}
             />
           )}

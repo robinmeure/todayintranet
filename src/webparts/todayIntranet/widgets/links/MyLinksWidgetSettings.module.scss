@@ -1,0 +1,140 @@
+@use '../../styles/widgetVisuals' as visual;
+
+.authoring {
+  @include visual.text;
+  color: '[theme:neutralPrimary, default:#323130]';
+}
+
+.header {
+  @include visual.themed-border($side: bottom);
+  display: flex;
+  align-items: center;
+  gap: visual.$space-sm;
+  padding-bottom: visual.$space-md;
+  margin-bottom: visual.$space-md;
+}
+
+.header h2 {
+  margin: 0;
+  flex: 1;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+}
+
+.body {
+  min-width: 0;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: visual.$space-lg;
+}
+
+.formActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: visual.$space-md;
+}
+
+.formActions > button {
+  min-width: 0;
+}
+
+.formActions > button:first-child:nth-last-child(3) {
+  margin-inline-end: auto;
+}
+
+.textButton {
+  border: 0;
+  padding: 0 visual.$space-xs;
+  background: transparent;
+  font-weight: 400;
+}
+
+.textButton :global(.ms-Button-label) {
+  font-weight: 400;
+}
+
+.addButton {
+  align-self: flex-start;
+  margin-bottom: visual.$space-sm;
+}
+
+.label {
+  margin: 0;
+  font-size: visual.$meta-size;
+  line-height: visual.$meta-line-height;
+  font-weight: 600;
+}
+
+.links {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: visual.$space-sm;
+}
+
+.row {
+  @include visual.meta;
+  @include visual.themed-border;
+  display: flex;
+  align-items: center;
+  border-radius: visual.$radius-sm;
+  min-height: 32px;
+  padding-inline-start: visual.$space-sm;
+  cursor: grab;
+  touch-action: none;
+}
+
+.row button {
+  width: 28px;
+  height: 28px;
+}
+
+.rowTitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.row:focus-visible,
+.advanced summary:focus-visible {
+  @include visual.focus-ring;
+}
+
+.dragging {
+  opacity: 0.5;
+}
+
+.dropTarget {
+  @include visual.focus-ring;
+  background: '[theme:themeLighterAlt, default:#eff6fc]';
+}
+
+.advanced {
+  margin-top: visual.$space-md;
+}
+
+.advanced summary {
+  cursor: pointer;
+  margin-bottom: visual.$space-md;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

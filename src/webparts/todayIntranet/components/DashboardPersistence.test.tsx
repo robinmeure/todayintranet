@@ -25,12 +25,17 @@ jest.mock('react-grid-layout', () => ({
 }));
 jest.mock('./Dashboard.module.scss', () => ({}), { virtual: true });
 jest.mock('../widgets/content/WidgetContent.module.scss', () => ({}), { virtual: true });
+jest.mock('../widgets/content/WidgetCollections.module.scss', () => ({}), { virtual: true });
+jest.mock('../widgets/links/MyLinksWidgetSettings.module.scss', () => ({ row: 'authoring-row' }), { virtual: true });
 jest.mock('../widgets/WidgetRegistry', () => ({ WidgetRegistry: { get: () => undefined } }));
 jest.mock('./AddWidgetPanel', () => ({ AddWidgetPanel: () => null }));
 jest.mock('./LayoutPresetPanel', () => ({ LayoutPresetPanel: () => null }));
 jest.mock('./WidgetFrame', () => ({
   WidgetFrame: (props: IWidgetFrameProps) => {
     mockFrames.set(props.instance.id, props);
+    if (props.isEditing && props.instance.type === 'custom.myLinks') {
+      return <MyLinksWidgetSettings context={{ ...props.widgetContext, refreshToken: 0 }} />;
+    }
     return props.isEditing ? (
       <TextSetting
         context={{ ...props.widgetContext, refreshToken: 0 }}
@@ -50,6 +55,8 @@ import { initializeIcons } from '@fluentui/react/lib/Icons';
 import type { WebPartContext } from '@microsoft/sp-webpart-base';
 import { Dashboard } from './Dashboard';
 import { TextSetting } from '../widgets/content/WidgetSettings';
+import { MyLinksWidgetSettings } from '../widgets/links/MyLinksWidgetSettings';
+import { parseLinksSetting } from '../widgets/links/linksSettings';
 import { IDashboardLayout, cloneLayout, CURRENT_LAYOUT_VERSION } from '../model/IDashboardLayout';
 import { ILayoutStore, ILayoutStoreStatus, LayoutStoreAction } from '../services/ILayoutStore';
 
@@ -177,6 +184,108 @@ describe('Dashboard persistence and recovery', () => {
     await act(async () => { frame().onUpdateTitle('one', 'Immediate title'); });
     expect(store.save).toHaveBeenCalledTimes(1);
     expect(store.save.mock.calls[0][0].widgets[0].title).toBe('Immediate title');
+  });
+
+  it('checkpoints and publishes My Links resizing and restores its saved dimensions', async () => {
+    const initial: IDashboardLayout = {
+      ...starter, widgets: [{
+        ...starter.widgets[0], type: 'custom.myLinks', w: 12, h: 9,
+        settings: { links: JSON.stringify([{ title: 'Alpha', url: 'https://a.example.test' }]) }
+      }]
+    };
+    store.load.mockResolvedValue(cloneLayout(initial));
+    await render();
+    expect(mockGrid.isResizable).toBe(false);
+    await click('Edit dashboard');
+    expect(mockGrid.isResizable).toBe(true);
+    await act(async () => {
+      mockGrid.onLayoutChange([{ i: 'one', x: 0, y: 0, w: 6, h: 5 }]);
+    });
+    expect(frame().instance).toMatchObject({ w: 6, h: 5, settings: initial.widgets[0].settings });
+    await act(async () => { frame().onNudge('one', { dw: -1, dh: -1 }); });
+    expect(frame().instance).toMatchObject({ w: 5, h: 4 });
+    await act(async () => {
+      mockGrid.onLayoutChange([{ i: 'one', x: 0, y: 0, w: 3, h: 4 }]);
+    });
+    const saved = store.save.mock.calls[store.save.mock.calls.length - 1][0];
+    expect(saved.widgets[0]).toMatchObject({ w: 3, h: 4, settings: initial.widgets[0].settings });
+    await click('Done');
+    expect(store.publish).toHaveBeenCalledTimes(1);
+    expect(mockGrid.isResizable).toBe(false);
+    act(() => { ReactDom.unmountComponentAtNode(container); });
+    const nextStore = new TestStore();
+    nextStore.load.mockResolvedValue(cloneLayout(saved));
+    await render(nextStore);
+    expect(frame().instance).toMatchObject({ w: 3, h: 4, settings: initial.widgets[0].settings });
+  });
+
+  it('checkpoints and publishes My Links additions, updates, ordering, sorting and confirmed deletion', async () => {
+    store.load.mockResolvedValue({
+      ...starter, widgets: [{
+        ...starter.widgets[0], type: 'custom.myLinks',
+        settings: {
+          unrelated: 'keep-me', links: JSON.stringify([
+            { title: 'Alpha', url: 'https://a.example.test' },
+            { title: 'Zebra', url: 'https://z.example.test', badge: 'VPN' }
+          ])
+        }
+      }]
+    });
+    const change = (label: string, value: string): void => {
+      const id = Array.from(container.querySelectorAll('label'))
+        .find((item) => item.textContent?.startsWith(label))?.htmlFor;
+      const input = id ? document.getElementById(id) : undefined;
+      if (!(input instanceof HTMLInputElement)) { throw new Error(`Missing field: ${label}`); }
+      act(() => { input.value = value; Simulate.change(input); });
+    };
+    const action = async (label: string): Promise<void> => {
+      const input = container.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
+      if (!input) { throw new Error(`Missing action: ${label}`); }
+      await act(async () => { Simulate.click(input); });
+    };
+    const latest = (): IDashboardLayout => store.save.mock.calls[store.save.mock.calls.length - 1][0];
+    const savedLinks = (): string[] => {
+      const settings = latest().widgets[0].settings;
+      if (!settings || typeof settings.links !== 'string') { throw new Error('Links were not checkpointed.'); }
+      expect(settings.unrelated).toBe('keep-me');
+      return parseLinksSetting(settings.links).links?.map((link) => link.title) ?? [];
+    };
+    await render();
+    await click('Edit dashboard');
+    const submit = async (): Promise<void> => {
+      const form = container.querySelector('form');
+      if (!form) { throw new Error('Missing link form.'); }
+      await act(async () => { Simulate.submit(form); });
+    };
+    await click('Add a new link');
+    change('Name', 'Middle');
+    change('Link', 'https://m.example.test');
+    await submit();
+    expect(savedLinks()).toEqual(['Alpha', 'Zebra', 'Middle']);
+    await action('Edit Middle');
+    change('Name', 'Beta');
+    await submit();
+    expect(savedLinks()).toEqual(['Alpha', 'Zebra', 'Beta']);
+    const row = container.querySelectorAll<HTMLLIElement>('.authoring-row')[2];
+    await act(async () => { Simulate.keyDown(row, { altKey: true, key: 'ArrowUp' }); });
+    expect(savedLinks()).toEqual(['Alpha', 'Beta', 'Zebra']);
+    await click('Sort Z-A');
+    expect(savedLinks()).toEqual(['Zebra', 'Beta', 'Alpha']);
+    await action('Delete Beta');
+    expect(store.save).toHaveBeenCalledTimes(4);
+    await click('Confirm delete');
+    expect(savedLinks()).toEqual(['Zebra', 'Alpha']);
+    await click('Done');
+    expect(store.publish).toHaveBeenCalledTimes(1);
+
+    const nextStore = new TestStore();
+    nextStore.load.mockResolvedValue(cloneLayout(latest()));
+    await render(nextStore);
+    await click('Edit dashboard');
+    expect(container.textContent).toContain('Zebra');
+    expect(container.textContent).toContain('Alpha');
+    expect(container.textContent).not.toContain('Beta');
+    expect(parseLinksSetting(String(frame().widgetContext.settings.links)).links?.[0].badge).toBe('VPN');
   });
 
   it('hides routine browser-only status', async () => {

@@ -68,7 +68,9 @@ export interface IDraftSetting {
  * Dismissing the settings flyout unmounts the field before it can blur, so the draft
  * is also committed on the way out.
  */
-export function useDraftSetting(context: IWidgetContext, key: string, fallback: string): IDraftSetting {
+export function useDraftSetting(
+  context: IWidgetContext, key: string, fallback: string, validate?: (value: string) => string | undefined
+): IDraftSetting {
   const stored: string = textSetting(context, key, fallback);
   const [value, setValue] = React.useState<string>(stored);
   const draftValue = React.useRef(stored);
@@ -82,7 +84,7 @@ export function useDraftSetting(context: IWidgetContext, key: string, fallback: 
 
   const latest = React.useRef<() => void>();
   latest.current = () => {
-    if (draftValue.current !== committedValue.current) {
+    if (draftValue.current !== committedValue.current && !validate?.(draftValue.current)) {
       committedValue.current = draftValue.current;
       write(context, key, draftValue.current);
     }
@@ -181,11 +183,13 @@ export interface ITextSettingProps {
    * anything that has to parse — a JSON payload, for instance. Defaults to `change`.
    */
   commitOn?: 'change' | 'blur';
+  /** Invalid drafts remain visible with an error, but are never persisted. */
+  validate?: (value: string) => string | undefined;
 }
 
 export const TextSetting: React.FunctionComponent<ITextSettingProps> = (props) => {
-  const { context, settingKey, label, fallback, maxLength, multiline, rows, commitOn } = props;
-  const draft = useDraftSetting(context, settingKey, fallback);
+  const { context, settingKey, label, fallback, maxLength, multiline, rows, commitOn, validate } = props;
+  const draft = useDraftSetting(context, settingKey, fallback, validate);
 
   return (
     <TextField
@@ -194,10 +198,11 @@ export const TextSetting: React.FunctionComponent<ITextSettingProps> = (props) =
       maxLength={maxLength}
       multiline={multiline}
       rows={rows}
+      errorMessage={validate?.(draft.value)}
       onChange={(_, next) => {
         const value = next ?? '';
         draft.setValue(value);
-        if (commitOn !== 'blur') {
+        if (commitOn !== 'blur' && !validate?.(value)) {
           write(context, settingKey, value);
         }
       }}
