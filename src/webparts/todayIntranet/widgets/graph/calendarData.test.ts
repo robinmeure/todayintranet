@@ -1,6 +1,6 @@
 import type { MSGraphClientV3 } from '@microsoft/sp-http';
 import { Event } from '@microsoft/microsoft-graph-types';
-import { calendarDateKey, calendarEventTime, calendarItems, calendarWindow, loadCalendarEvents, parseCalendarDate } from './calendarData';
+import { calendarDateKey, calendarEventTime, calendarItems, calendarTimeFormat, calendarWindow, loadCalendarEvents, parseCalendarDate } from './calendarData';
 
 describe('calendar date and item mapping', () => {
   const now = new Date(2026, 8, 21, 13);
@@ -9,6 +9,20 @@ describe('calendar date and item mapping', () => {
     start: { dateTime: new Date(2026, 8, 21, hour).toISOString(), timeZone: 'UTC' },
     end: { dateTime: new Date(2026, 8, 21, hour + 1).toISOString(), timeZone: 'UTC' },
     ...extra
+  });
+
+  it('defaults the clock to the locale while honoring an explicit selection', () => {
+    expect(calendarTimeFormat(undefined, 'en-US')).toBe('12');
+    expect(calendarTimeFormat(undefined, 'en-GB')).toBe('24');
+    expect(calendarTimeFormat('invalid', 'nl-NL')).toBe('24');
+    expect(calendarTimeFormat('24', 'en-US')).toBe('24');
+    expect(calendarTimeFormat('12', 'en-GB')).toBe('12');
+  });
+
+  it.each(['12', '24'] as const)('formats meeting times with an explicit %s-hour clock', (format) => {
+    const item = calendarItems([event('Meeting', 14)], new Date(2026, 8, 21), now, 5, 'en-GB', format)[0];
+    expect(item.agendaMeta?.[0]).toBe(format === '12' ? '2:00 pm - 3:00 pm' : '14:00 - 15:00');
+    expect(item.meta?.[0]).toContain(item.agendaMeta?.[0]);
   });
 
   it.each(['2026-02-30', '2026-13-01', '2026-00-01', '2026-09-00', '26-09-21', '', 'not-a-date'])(
@@ -57,6 +71,35 @@ describe('calendar date and item mapping', () => {
     })], new Date(2026, 8, 21), now, 5, 'en-GB');
     expect(items[0].leadingLabel?.text).toBe('All day');
     expect(items[0].badge).toBeUndefined();
+  });
+
+  it.each<[number, number, string, string | undefined]>([
+    [12, 59, 'Now', undefined],
+    [13, 1, '1', 'minute'],
+    [13, 15, '15', 'minutes'],
+    [13, 59, '59', 'minutes'],
+    [14, 0, 'Today', 'Mon 21'],
+    [15, 0, 'Today', 'Mon 21']
+  ])('uses the reference badge hierarchy for a meeting at %s:%s', (hour, minute, text, description) => {
+    const start = new Date(2026, 8, 21, hour, minute);
+    const items = calendarItems([event('Meeting', 13, {
+      start: { dateTime: start.toISOString(), timeZone: 'UTC' },
+      end: { dateTime: new Date(start.getTime() + 30 * 60000).toISOString(), timeZone: 'UTC' }
+    })], new Date(2026, 8, 21), now, 5, 'en-GB');
+    expect(items[0].leadingLabel).toMatchObject({ text });
+    expect(items[0].leadingLabel?.description).toBe(description);
+  });
+
+  it.each<[Date, string, string]>([
+    [new Date(2026, 8, 22, 10), 'Tue 22', 'Tomorrow'],
+    [new Date(2026, 8, 23, 10), 'Wed 23', 'Sept'],
+    [new Date(2026, 9, 1, 10), 'Thu 1', 'Oct']
+  ])('puts the weekday and date above the relative day or month (%s)', (start, text, description) => {
+    const items = calendarItems([event('Future', 14, {
+      start: { dateTime: start.toISOString(), timeZone: 'UTC' },
+      end: { dateTime: new Date(start.getTime() + 30 * 60000).toISOString(), timeZone: 'UTC' }
+    })], new Date(2026, 8, 21), now, 5, 'en-GB');
+    expect(items[0].leadingLabel).toMatchObject({ text, description });
   });
 
   it('omits unavailable actions and labels online actions with the meeting title', () => {

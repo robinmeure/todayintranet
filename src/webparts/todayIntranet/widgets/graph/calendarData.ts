@@ -3,6 +3,12 @@ import { Event } from '@microsoft/microsoft-graph-types';
 import { IWidgetListItem } from '../content/IWidgetContent';
 
 export type CalendarRange = 'today' | 'tomorrow' | 'upcoming' | 'date';
+export type CalendarTimeFormat = '12' | '24';
+
+export function calendarTimeFormat(value: unknown, locale: string | undefined): CalendarTimeFormat {
+  return value === '12' || value === '24' ? value
+    : new Intl.DateTimeFormat(locale, { hour: 'numeric' }).resolvedOptions().hour12 ? '12' : '24';
+}
 
 export function calendarDateKey(date: Date): string {
   return `${date.getFullYear()}-${`0${date.getMonth() + 1}`.slice(-2)}-${`0${date.getDate()}`.slice(-2)}`;
@@ -90,7 +96,8 @@ function dayLabel(start: Date, now: Date, locale: string | undefined): string {
 }
 
 export function calendarItems(
-  events: Event[], rangeStart: Date, now: Date, maxItems: number, locale: string | undefined
+  events: Event[], rangeStart: Date, now: Date, maxItems: number, locale: string | undefined,
+  timeFormat?: CalendarTimeFormat
 ): IWidgetListItem[] {
   const isHistory = calendarDateKey(rangeStart) < calendarDateKey(now);
   return events.filter((event) => {
@@ -106,7 +113,11 @@ export function calendarItems(
     const minutes = start ? Math.ceil((start.getTime() - now.getTime()) / 60000) : 0;
     const startsSoon = !event.isAllDay && minutes > 0 && minutes < 60;
     const day = start ? dayLabel(start, now, locale) : 'Date TBC';
+    const date = start?.toLocaleDateString(locale, { weekday: 'short', day: 'numeric' });
+    const isToday = !!start && calendarDateKey(start) === calendarDateKey(now);
+    const isTomorrow = !!start && calendarDateKey(start) === calendarDateKey(addDays(now, 1));
     const timeOptions: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' };
+    if (timeFormat) { timeOptions.hour12 = timeFormat === '12'; }
     const time = event.isAllDay ? 'All day' : start
       ? `${start.toLocaleTimeString(locale, timeOptions)}${end ? ` - ${end.toLocaleTimeString(locale, timeOptions)}` : ''}`
       : 'Time to be confirmed';
@@ -116,14 +127,17 @@ export function calendarItems(
       title,
       href: event.webLink ?? undefined,
       meta: [`${day} · ${time}`, event.location?.displayName ?? undefined],
+      agendaMeta: [time, event.location?.displayName ?? undefined],
       hasAccentBar: true,
       tone: inProgress ? 'success' : start && calendarDateKey(start) === calendarDateKey(now) ? 'accent' : 'neutral',
       isEmphasized: inProgress || startsSoon,
       badge: inProgress ? { text: 'Now', tone: 'success' } : undefined,
       leadingLabel: {
-        text: inProgress ? 'Now' : event.isAllDay ? 'All day' : startsSoon ? String(minutes) : day,
-        description: inProgress ? undefined : startsSoon ? (minutes === 1 ? 'Minute' : 'Minutes')
-          : start?.toLocaleDateString(locale, { weekday: 'short', day: 'numeric' }),
+        text: inProgress ? 'Now' : event.isAllDay ? 'All day' : startsSoon ? String(minutes)
+          : isToday ? 'Today' : date ?? 'Date TBC',
+        description: inProgress ? undefined : startsSoon ? (minutes === 1 ? 'minute' : 'minutes')
+          : event.isAllDay || isToday ? date : isTomorrow ? 'Tomorrow'
+            : start?.toLocaleDateString(locale, { month: 'short' }),
         tone: inProgress ? 'success' : startsSoon ? 'accent' : 'neutral'
       },
       actions: [

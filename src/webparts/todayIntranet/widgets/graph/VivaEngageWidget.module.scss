@@ -17,9 +17,7 @@
 }
 
 .name {
-  font-size: 16px;
-  line-height: 22px;
-  font-weight: 600;
+  @include visual.item-title;
   color: inherit;
   text-decoration: none;
   overflow-wrap: anywhere;
@@ -51,16 +49,12 @@
 .description {
   margin: 0;
   color: '[theme:neutralSecondary, default:#605e5c]';
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 .sectionTitle {
-  @include visual.meta;
+  @include visual.subsection-heading;
   margin: 0 0 visual.$space-sm;
-  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: '[theme:neutralSecondary, default:#605e5c]';

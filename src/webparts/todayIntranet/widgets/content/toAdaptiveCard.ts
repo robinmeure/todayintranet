@@ -20,20 +20,20 @@ function toContainer(item: IWidgetListItem, index: number): AdaptiveCardPayload 
       type: 'TextBlock',
       text: item.title,
       wrap: true,
-      weight: item.isEmphasized ? 'Bolder' : 'Default',
+      weight: 'Bolder',
       color: TONE_COLOR[item.tone ?? 'neutral'],
       spacing: 'None'
     }
   ];
   if (meta) {
-    texts.push({ type: 'TextBlock', text: meta, wrap: false, size: 'Small', isSubtle: true, spacing: 'None' });
+    texts.push({ type: 'TextBlock', text: meta, wrap: true, size: 'Small', isSubtle: true, spacing: 'None' });
   }
   if (item.description) {
     texts.push({
       type: 'TextBlock',
       text: item.description,
       wrap: true,
-      size: 'Small',
+      size: 'Default',
       isSubtle: true,
       spacing: 'None'
     });
@@ -53,7 +53,7 @@ function toContainer(item: IWidgetListItem, index: number): AdaptiveCardPayload 
           text: item.badge.text,
           size: 'Small',
           weight: 'Bolder',
-          wrap: false,
+          wrap: true,
           spacing: 'None',
           color: TONE_COLOR[item.badge.tone ?? item.tone ?? 'neutral']
         }

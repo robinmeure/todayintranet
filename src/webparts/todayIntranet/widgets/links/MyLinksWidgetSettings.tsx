@@ -6,7 +6,7 @@ import { SearchBox } from '@fluentui/react/lib/SearchBox';
 import { TextField } from '@fluentui/react/lib/TextField';
 import { Toggle } from '@fluentui/react/lib/Toggle';
 import { IWidgetContext } from '../IWidget';
-import { NumberSetting, SettingsSurface, TextSetting, textSetting } from '../content';
+import { PaginationSettings, SettingsSurface, TextSetting, textSetting } from '../content';
 import { DEFAULT_ITEMS_PER_PAGE, DEFAULT_LINKS_SETTING, IMyLink, ITEMS_PER_PAGE_BOUNDS, parseLinksSetting } from './linksSettings';
 import styles from './MyLinksWidgetSettings.module.scss';
 
@@ -197,8 +197,8 @@ export const MyLinksWidgetSettings: React.FunctionComponent<{ context: IWidgetCo
               <SettingsSurface>
                 <DefaultButton text="Sort A-Z" disabled={!!parsed.error || links.length < 2} onClick={() => sort(false)} />
                 <DefaultButton text="Sort Z-A" disabled={!!parsed.error || links.length < 2} onClick={() => sort(true)} />
-                <NumberSetting context={context} settingKey="itemsPerPage" label="Links per page"
-                  fallback={DEFAULT_ITEMS_PER_PAGE} {...ITEMS_PER_PAGE_BOUNDS} />
+                <PaginationSettings context={context} label="Links per page" enabled={true}
+                  fallback={DEFAULT_ITEMS_PER_PAGE} bounds={ITEMS_PER_PAGE_BOUNDS} />
                 <TextSetting context={context} settingKey="links" label="Links (JSON)" fallback={DEFAULT_LINKS_SETTING}
                   multiline rows={8} commitOn="blur" validate={(value) => parseLinksSetting(value).error} />
               </SettingsSurface>

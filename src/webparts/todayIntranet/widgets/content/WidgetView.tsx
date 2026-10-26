@@ -13,6 +13,8 @@ export interface IWidgetViewProps<T> {
   state: IWidgetDataState<T>;
   loading?: IWidgetLoadingProps;
   empty: IWidgetEmptyState;
+  /** Optional custom empty presentation, still wrapped in refresh/stale states. */
+  emptyContent?: React.ReactElement;
   /** Overrides the default test, which treats an empty array as nothing to show. */
   isEmpty?(data: T): boolean;
   /** Called only when there is data worth rendering. */
@@ -25,7 +27,7 @@ export interface IWidgetViewProps<T> {
  * states look and behave the same everywhere and no widget has to re-invent them.
  */
 export function WidgetView<T>(props: IWidgetViewProps<T>): React.ReactElement {
-  const { state, loading, empty, isEmpty, children } = props;
+  const { state, loading, empty, emptyContent, isEmpty, children } = props;
 
   if (state.status === 'loading') {
     return <WidgetLoading {...loading} />;
@@ -37,12 +39,12 @@ export function WidgetView<T>(props: IWidgetViewProps<T>): React.ReactElement {
 
   const data: T | undefined = state.data;
   if (data === undefined) {
-    return <WidgetEmpty {...empty} />;
+    return emptyContent ?? <WidgetEmpty {...empty} />;
   }
 
   const hasNothing: boolean = isEmpty ? isEmpty(data) : Array.isArray(data) && data.length === 0;
   const content: React.ReactElement = hasNothing
-    ? <WidgetEmpty {...empty} />
+    ? emptyContent ?? <WidgetEmpty {...empty} />
     : children(data);
   const retainedContent = state.refreshError
     ? (

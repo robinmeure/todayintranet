@@ -92,6 +92,8 @@ export interface IWidgetDefinition {
   contentSurface?: 'card' | 'none';
   /** Widens the settings flyout, for settings that need the room (a query preview). */
   isSettingsWide?: boolean;
+  /** The widget supplies its own paging controls in renderSettings. */
+  hasCustomPaginationSettings?: boolean;
   /**
    * Views this widget's content can be drawn in. Declaring more than one puts a view
    * picker in the tile's settings; the widget reads the choice with `viewSetting`

@@ -7,8 +7,9 @@ describe('toAdaptiveCardHostConfig', () => {
 
     expect(toAdaptiveCardHostConfig(theme)).toMatchObject({
       fontFamily: theme.fonts.medium.fontFamily,
-      fontSizes: { small: 12, default: 14 },
-      lineHeights: { small: 16, default: 20 },
+      fontSizes: { small: 14, default: 16, medium: 19, large: 24, extraLarge: 28 },
+      lineHeights: { small: 20, default: 24, medium: 28, large: 36, extraLarge: 28.5 },
+      fontWeights: { default: 400, bolder: 700 },
       spacing: { small: 4, default: 8, medium: 12, large: 16, padding: 0 }
     });
   });

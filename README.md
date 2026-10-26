@@ -99,6 +99,21 @@ Layout is authored on a 12 column grid (`react-grid-layout`). Narrower breakpoin
 that canonical layout by clamping widths, and rearranging is only saved at the widest breakpoint so a
 phone visit can never scramble someone's desktop layout.
 
+Widget heights are content-aware: the chosen tile height is a minimum, and tiles grow to show their
+entire current page without internal scrollbars. Text wraps instead of being clipped or truncated.
+The page itself scrolls vertically as needed. Content measurements are transient and never overwrite
+the saved desktop geometry or switch a preset to Custom; deliberate drag/resize gestures still save.
+
+Every collection widget offers **Use pagination** and a configurable **Items per page** in its
+settings (My links keeps its existing pagination enabled by default, under Advanced settings;
+Calendar defaults to five meetings per page and uses a 3–6 slider).
+Paging works across list, compact, cards, gallery, agenda, links and Adaptive Card collection views.
+It pages the loaded results, not the entire remote mailbox or search index: existing item/file limits
+still control fetching. Tasks pagination covers all loaded tasks; with pagination off, its existing
+item limit still applies. Calendar displays all selected-range meetings when pagination is off.
+Clock, Welcome and authored Adaptive Cards are single-content widgets,
+so they grow to fit rather than displaying meaningless page controls.
+
 The web part sets `supportsFullBleed: true`, so place it in a **full-width section** on a
 communication-site page to get edge-to-edge rendering.
 
@@ -135,6 +150,13 @@ close the gap. Preset and row-size ids are persisted, so never rename one that h
 
 ## How a widget describes what it shows
 
+New widgets and presentation changes must follow the
+[widget UI instructions](.github/instructions/widget-ui.instructions.md).
+Copilot loads these instructions for widget, dashboard component, and shared-style files;
+the repository-wide instruction file also points new-widget requests to them.
+Shared components and Sass mixins apply the defaults, while typography tests guard the
+covered title surfaces. Instructions guide implementation; they do not replace validation.
+
 Widgets do not style themselves. They describe their content with the shapes in
 `widgets/content` and hand it to a shared primitive, which is what keeps a calendar tile, a mail
 tile and anything added later looking like one product instead of five.
@@ -146,7 +168,8 @@ widgets/content/WidgetItems.tsx    draws a collection in whichever view the tile
 widgets/content/WidgetList.tsx     the list view, comfortable or compact
 widgets/content/WidgetCards.tsx    the cards and gallery views
 widgets/content/WidgetCollections.tsx  shared agenda and shortcut-tile views
-widgets/content/WidgetCollectionControls.tsx  date navigation, search and pagination
+widgets/content/WidgetCollectionControls.tsx  date navigation and filtered collections
+widgets/content/WidgetPagination.tsx         optional paging, settings and accessible page controls
 widgets/content/WidgetAdaptiveCard.tsx  the Adaptive Card renderer, themed from the site
 widgets/content/toAdaptiveCard.ts  turns ordinary widget items into an Adaptive Card payload
 widgets/content/WidgetStat.tsx     a single headline figure
@@ -446,17 +469,24 @@ Native surfaces share [a small Sass vocabulary](src/webparts/todayIntranet/style
 | Element | Shared treatment |
 | --- | --- |
 | Spacing | 4, 8, 12, and 16px steps; existing grid gaps and saved tile sizes are unchanged |
-| Body text | 14px with a 20px line height |
-| Widget headings | 20px with a 28px line height, bold, above the content |
+| Body text and descriptions | Segoe UI, 16px with a 24px line height, regular |
+| Item titles | 16px with a 24px line height, bold (700), in every collection view and at every width |
+| Widget headings | 28px with a 28.5px line height, regular (400), above the content |
+| Subsection headings | 19px with a 28px line height, bold |
 | Content surfaces | 16px rounding and padding by default, without outer elevation |
-| Secondary metadata | 12px with a 16px line height |
+| Secondary metadata | 14px with a 20px line height, regular |
+| Helper text and compact badge captions | 12px with a 16px line height |
 | Tile actions | 32px targets, with space reserved even when the actions are hidden |
 | Compact view | Tighter row padding and text gaps, without hiding fields or changing item limits |
 
 The Adaptive Card host uses the same text hierarchy and theme-aware status foregrounds. Tone text,
 accent bars, and badge backgrounds are separate: for example, a warning can retain its amber accent
 without using low-contrast yellow for small text. Ordinary titles stay neutral; existing unread and
-status emphasis remains meaningful.
+status emphasis remains meaningful through tone and badges rather than a different title weight.
+Calendar, My links, Tasks, mail, news, search and community item titles use the shared `item-title`
+mixin; narrow layouts wrap titles instead of reducing their font size. Collection Adaptive Cards
+use the same 16px/24px bold title and 14px/20px metadata. Authored cards retain their explicit size
+choices within the host's reference scale; clock values and other non-item displays keep their own roles.
 
 Use the shared `themed-border` and `focus-ring` mixins when adding a surface. The build's CSS minifier
 can strip quoted theme tokens from border shorthands, or lowercase a case-sensitive theme key when
@@ -465,7 +495,8 @@ resolves them. No global theme override or fixed light-only palette is needed.
 
 Widget settings, the catalogue, layout picker, and search preview use the same visual rules. Wide
 settings fit within narrow viewports, Gallery adapts to the tile's available width, and long titles
-truncate without overlapping actions. Scrollbars follow the theme. Keyboard focus remains visible,
+wrap without overlapping actions. Widgets grow rather than scrolling internally; settings and other
+overlays retain themed scrolling where necessary. Keyboard focus remains visible,
 forced-colors mode uses system indicators, and reduced-motion preferences disable the shared
 shimmers, progress animation, action fades, card transitions, and grid transitions.
 
@@ -678,15 +709,28 @@ tenant; local tests and a fixture preview do not certify tenant behavior.
 Agenda is the default presentation; the original List, Compact, Cards, Gallery and Adaptive card
 views remain available in the host's settings flyout. Navigation is temporary UI state, not a saved
 dashboard change: each visit starts on Today. Existing `calendarRange` / `selectedDate` settings from
-the initial implementation are no longer used; saved `days`, `maxItems` and `view` settings remain.
+the initial implementation are no longer used; saved `days` and `view` settings remain.
+The meetings-per-page slider ranges from 3 to 6 (default 5). Old `maxItems` values seed the page size,
+clamped to this range, until `itemsPerPage` is saved. Pagination is enabled by default for Calendar;
+switching it off displays every loaded meeting in the selected period and expands the tile.
+The AM/PM or 24-hour clock defaults to the user's locale; changing it does not refetch data.
 
 The native date input retains its picker trigger. Today and Tomorrow keep the input and query date
 aligned; Upcoming covers the configured number of local calendar days starting today. Query bounds
 use local midnight rather than fixed 24-hour offsets, including daylight-saving changes. Graph
 responses are requested in UTC and converted to local display time.
+At medium widths the date picker moves below the tabs, while Sync stays on the right.
+Narrow calendars use an accessible icon-only Sync button and stack Join/Details beside the event.
+An empty period shows an outlined **No meetings scheduled** message naming the selected period.
+
+Agenda date badges keep a rounded square and two-line hierarchy at every width: **Now** for an
+ongoing meeting, **15 / minutes** for a meeting starting within the next hour, **Today / Mon 30**
+for later today, and **Tue 31 / Tomorrow** for tomorrow. Later dates show the weekday/day above
+the month; all-day events retain their explicit **All day** label. Colors follow the existing theme.
+Badges are 68px wide (60px in narrow tiles), and all titles, locations and dates can wrap.
 
 The reader follows all result pages for the selected range. Cancelled events are excluded; completed
-events are excluded from current/future ranges **before** limiting the visible rows. Selecting a past
+events are excluded from current/future ranges **before** pagination. Selecting a past
 date still shows historical appointments. Badges update every 15 seconds and on focus/visibility
 changes without a request on every tick. The data refreshes on five-minute boundaries and when the
 date range changes; Sync bypasses the current cached result. A same-range refresh keeps the shared
@@ -708,7 +752,7 @@ a separate search surface and pagination.
 In **Edit dashboard**, use the widget's resize handle to change its width and height, or focus its
 title bar and use **Shift+arrow keys**. My links starts at 12 columns by 9 rows and can shrink to
 3 columns by 4 rows using the same grid resizing as other widgets. Narrower layouts adapt the
-shortcut columns; shorter widgets scroll their content. Resized dimensions persist with the
+shortcut columns; content can grow a shorter widget beyond its chosen minimum height. Resized dimensions persist with the
 dashboard layout when you select **Done**.
 
 In **Edit dashboard > My links settings**, the shared widget settings flyout shows a searchable list of favorite links.

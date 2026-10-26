@@ -17,9 +17,9 @@ export function toAdaptiveCardHostConfig(theme: ITheme): Record<string, unknown>
     // The widget body already supplies the outer padding.
     spacing: { none: 0, small: 4, default: 8, medium: 12, large: 16, extraLarge: 24, padding: 0 },
     separator: { lineThickness: 1, lineColor: palette.neutralLight },
-    fontSizes: { small: 12, default: 14, medium: 16, large: 18, extraLarge: 22 },
-    lineHeights: { small: 16, default: 20, medium: 24, large: 24, extraLarge: 28 },
-    fontWeights: { lighter: 300, default: 400, bolder: 600 },
+    fontSizes: { small: 14, default: 16, medium: 19, large: 24, extraLarge: 28 },
+    lineHeights: { small: 20, default: 24, medium: 28, large: 36, extraLarge: 28.5 },
+    fontWeights: { lighter: 300, default: 400, bolder: 700 },
     containerStyles: {
       default: { backgroundColor: palette.white, foregroundColors },
       emphasis: { backgroundColor: palette.neutralLighter, foregroundColors },

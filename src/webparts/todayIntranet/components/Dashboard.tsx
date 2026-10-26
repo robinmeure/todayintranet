@@ -29,6 +29,7 @@ const ResponsiveGridLayout = WidthProvider(Responsive);
 const BREAKPOINTS: Record<string, number> = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 };
 const COLS: Record<string, number> = { lg: GRID_COLUMNS, md: 8, sm: 6, xs: 4, xxs: 2 };
 const ROW_HEIGHT: number = 56;
+const GRID_GAP: number = 16;
 
 export interface IDashboardProps {
   title: string;
@@ -41,7 +42,7 @@ export interface IDashboardProps {
 }
 
 /** The canonical layout is authored on 12 columns; narrower breakpoints clamp it. */
-function toGridLayouts(widgets: IWidgetInstance[]): Layouts {
+function toGridLayouts(widgets: IWidgetInstance[], contentRows: Record<string, number>): Layouts {
   const layouts: Layouts = {};
   Object.keys(COLS).forEach((breakpoint) => {
     const cols = COLS[breakpoint];
@@ -53,20 +54,20 @@ function toGridLayouts(widgets: IWidgetInstance[]): Layouts {
         x: Math.min(widget.x, Math.max(0, cols - w)),
         y: widget.y,
         w,
-        h: widget.h,
+        h: Math.max(widget.h, contentRows[widget.id] ?? 0),
         minW: definition?.minSize ? Math.min(definition.minSize.w, cols) : 1,
-        minH: definition?.minSize?.h ?? 2
+        minH: Math.max(definition?.minSize?.h ?? 2, contentRows[widget.id] ?? 0)
       } as Layout;
     });
   });
   return layouts;
 }
 
-function applyGridLayout(widgets: IWidgetInstance[], layout: Layout[]): IWidgetInstance[] {
+function applyGridLayout(widgets: IWidgetInstance[], layout: Layout[], resizedId?: string): IWidgetInstance[] {
   const byId = new Map(layout.map((item) => [item.i, item]));
   return widgets.map((widget) => {
     const item = byId.get(widget.id);
-    return item ? { ...widget, x: item.x, y: item.y, w: item.w, h: item.h } : widget;
+    return item ? { ...widget, x: item.x, y: item.y, w: item.w, h: widget.id === resizedId ? item.h : widget.h } : widget;
   });
 }
 
@@ -138,6 +139,7 @@ const DashboardSession: React.FunctionComponent<IDashboardProps> = (props) => {
   const [isCatalogueOpen, setIsCatalogueOpen] = React.useState<boolean>(false);
   const [isLayoutPanelOpen, setIsLayoutPanelOpen] = React.useState<boolean>(false);
   const [breakpoint, setBreakpoint] = React.useState<string>('lg');
+  const [contentRows, setContentRows] = React.useState<Record<string, number>>({});
   const [presetId, setPresetId] = React.useState<string | undefined>(undefined);
   const [rowSizeId, setRowSizeId] = React.useState<string>(DEFAULT_ROW_SIZE_ID);
   const [storeStatus, setStoreStatus] = React.useState<ILayoutStoreStatus>(() => store.getStatus());
@@ -283,24 +285,10 @@ const DashboardSession: React.FunctionComponent<IDashboardProps> = (props) => {
     }
   }, [store, session]);
 
-  const handleLayoutChange = React.useCallback(
-    (current: Layout[]) => {
-      // Only the 12 column breakpoint is authoritative; narrower ones are derived.
-      if (breakpointRef.current !== 'lg' || isLoading) {
-        return;
-      }
-      const previous = widgetsRef.current;
-      const next = applyGridLayout(previous, current);
-      const changed = next.some((w, i) => {
-        const before = previous[i];
-        return w.x !== before.x || w.y !== before.y || w.w !== before.w || w.h !== before.h;
-      });
-      if (changed) {
-        update(next);
-      }
-    },
-    [isLoading, update]
-  );
+  const handleContentHeightChange = React.useCallback((id: string, height: number): void => {
+    const rows = Math.max(1, Math.ceil((height + GRID_GAP) / (ROW_HEIGHT + GRID_GAP)));
+    setContentRows((previous) => previous[id] === rows ? previous : { ...previous, [id]: rows });
+  }, []);
 
   const handleAdd = React.useCallback(
     (definition: IWidgetDefinition) => {
@@ -358,10 +346,10 @@ const DashboardSession: React.FunctionComponent<IDashboardProps> = (props) => {
 
       const definition = WidgetRegistry.get(target.type);
       const minW = definition?.minSize?.w ?? 1;
-      const minH = definition?.minSize?.h ?? 2;
+      const minH = Math.max(definition?.minSize?.h ?? 2, contentRows[instanceId] ?? 0);
 
       const w = Math.max(minW, Math.min(cols, target.w + (nudge.dw ?? 0)));
-      const h = Math.max(minH, target.h + (nudge.dh ?? 0));
+      const h = nudge.dh === undefined ? target.h : Math.max(minH, Math.max(target.h, minH) + nudge.dh);
       const x = Math.max(0, Math.min(cols - w, target.x + (nudge.dx ?? 0)));
 
       const resized: IWidgetInstance = { ...target, x, w, h };
@@ -369,7 +357,11 @@ const DashboardSession: React.FunctionComponent<IDashboardProps> = (props) => {
 
       const dy = nudge.dy ?? 0;
       if (dy !== 0) {
-        next = swapVertically(next, resized, dy) ?? next;
+        const measured = next.map((item) => ({ ...item, h: Math.max(item.h, contentRows[item.id] ?? 0) }));
+        const swapped = swapVertically(measured, measured.filter((item) => item.id === instanceId)[0], dy);
+        if (swapped) {
+          next = swapped.map((item, index) => ({ ...item, h: next[index].h }));
+        }
       }
 
       const changed = next.some((item, i) => {
@@ -380,7 +372,7 @@ const DashboardSession: React.FunctionComponent<IDashboardProps> = (props) => {
         commit(next, undefined);
       }
     },
-    [commit]
+    [commit, contentRows]
   );
 
   const handleUpdateSettings = React.useCallback(
@@ -485,7 +477,8 @@ const DashboardSession: React.FunctionComponent<IDashboardProps> = (props) => {
    * applying a preset does not immediately mark the layout custom.
    */
   const handleGestureStop = React.useCallback(
-    (_layout: Layout[], oldItem: Layout, newItem: Layout) => {
+    (layout: Layout[], oldItem: Layout, newItem: Layout) => {
+      if (breakpointRef.current !== 'lg') { return; }
       if (
         oldItem.x !== newItem.x ||
         oldItem.y !== newItem.y ||
@@ -493,16 +486,18 @@ const DashboardSession: React.FunctionComponent<IDashboardProps> = (props) => {
         oldItem.h !== newItem.h
       ) {
         markCustom();
+        // Content-driven sizing is transient; only intentional gestures checkpoint geometry.
+        commit(applyGridLayout(widgetsRef.current, layout, oldItem.h !== newItem.h ? newItem.i : undefined), undefined);
       }
     },
-    [markCustom]
+    [markCustom, commit]
   );
 
   const activePreset = getPreset(presetId);
   const canEdit = session.loaded && !isLoading && storeStatus.canEdit && !isResolving;
   const editing = isEditing && canEdit;
 
-  const gridLayouts = React.useMemo(() => toGridLayouts(widgets), [widgets]);
+  const gridLayouts = React.useMemo(() => toGridLayouts(widgets, contentRows), [widgets, contentRows]);
 
   const fluentTheme = React.useMemo(() => {
     if (!theme) {
@@ -608,15 +603,14 @@ const DashboardSession: React.FunctionComponent<IDashboardProps> = (props) => {
           rowHeight={ROW_HEIGHT}
           margin={[16, 16]}
           containerPadding={[0, 0]}
-          isDraggable={editing}
-          isResizable={editing}
+          isDraggable={editing && breakpoint === 'lg'}
+          isResizable={editing && breakpoint === 'lg'}
           draggableHandle=".widget-drag-handle"
           compactType="vertical"
           onBreakpointChange={(next) => {
             breakpointRef.current = next;
             setBreakpoint(next);
           }}
-          onLayoutChange={handleLayoutChange}
           onDragStop={handleGestureStop}
           onResizeStop={handleGestureStop}
           measureBeforeMount={false}
@@ -639,6 +633,7 @@ const DashboardSession: React.FunctionComponent<IDashboardProps> = (props) => {
                   onRemove={handleRemove}
                   onNudge={handleNudge}
                   onUpdateTitle={handleUpdateTitle}
+                  onContentHeightChange={handleContentHeightChange}
                   canEdit={canEdit}
                   onRequestEdit={() => setIsEditing(true)}
                 />

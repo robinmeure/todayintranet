@@ -9,7 +9,7 @@ import { WidgetErrorBoundary } from './WidgetErrorBoundary';
 import { IWidgetInstance } from '../model/IDashboardLayout';
 import { IWidgetContext, IWidgetHostContext } from '../widgets/IWidget';
 import { WidgetRegistry } from '../widgets/WidgetRegistry';
-import { ViewSetting, WidgetEmpty } from '../widgets/content';
+import { PaginationSettings, ViewSetting, WidgetEmpty } from '../widgets/content';
 
 /** A keyboard driven move or resize, expressed in grid units. */
 export interface INudge {
@@ -29,6 +29,7 @@ export interface IWidgetFrameProps {
   onUpdateTitle(instanceId: string, title: string): void;
   onRequestEdit?(): void;
   canEdit?: boolean;
+  onContentHeightChange?(instanceId: string, height: number): void;
 }
 
 const ARROW_MOVES: Record<string, INudge> = {
@@ -52,7 +53,8 @@ const ACTION_BUTTON_STYLES: { root: { width: number; height: number } } = {
 
 /** Shared chrome (title bar, drag handle, refresh, settings, remove) around every widget. */
 export const WidgetFrame: React.FunctionComponent<IWidgetFrameProps> = (props) => {
-  const { instance, widgetContext, isEditing, onRemove, onNudge, onUpdateTitle, onRequestEdit, canEdit = true } = props;
+  const { instance, widgetContext, isEditing, onRemove, onNudge, onUpdateTitle, onRequestEdit,
+    onContentHeightChange, canEdit = true } = props;
   const definition = WidgetRegistry.get(instance.type);
   const defaultName = definition ? definition.displayName : instance.type;
   const name = instance.title?.trim() || defaultName;
@@ -61,6 +63,31 @@ export const WidgetFrame: React.FunctionComponent<IWidgetFrameProps> = (props) =
   const [refreshToken, setRefreshToken] = React.useState<number>(0);
   const [settingsAction, setSettingsAction] = React.useState<'add'>();
   const settingsButtonId = `widget-settings-${instance.id}`;
+  const headerRef = React.useRef<HTMLDivElement>(null);
+  const bodyRef = React.useRef<HTMLDivElement>(null);
+  const contentRef = React.useRef<HTMLDivElement>(null);
+
+  React.useLayoutEffect(() => {
+    const header = headerRef.current;
+    const body = bodyRef.current;
+    const content = contentRef.current;
+    if (!header || !body || !content || !onContentHeightChange) { return undefined; }
+    const report = (): void => {
+      const headerStyle = window.getComputedStyle(header);
+      const bodyStyle = window.getComputedStyle(body);
+      const height = header.getBoundingClientRect().height + parseFloat(headerStyle.marginBottom || '0') +
+        content.getBoundingClientRect().height + parseFloat(bodyStyle.paddingTop || '0') +
+        parseFloat(bodyStyle.paddingBottom || '0') + parseFloat(bodyStyle.borderTopWidth || '0') +
+        parseFloat(bodyStyle.borderBottomWidth || '0');
+      onContentHeightChange(instance.id, Math.ceil(height));
+    };
+    report();
+    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(report);
+    observer?.observe(header);
+    observer?.observe(content);
+    window.addEventListener('resize', report);
+    return () => { observer?.disconnect(); window.removeEventListener('resize', report); };
+  }, [instance.id, onContentHeightChange]);
 
   const views = definition?.supportedViews ?? [];
   const hasViewPicker = views.length > 1;
@@ -101,6 +128,7 @@ export const WidgetFrame: React.FunctionComponent<IWidgetFrameProps> = (props) =
   return (
     <section className={`${styles.frame} ${isEditing ? styles.frameEditing : ''}`} aria-label={name}>
       <div
+        ref={headerRef}
         className={`${styles.header} ${isEditing ? `${styles.dragHandle} widget-drag-handle` : ''}`}
         tabIndex={isEditing ? 0 : undefined}
         role={isEditing ? 'group' : undefined}
@@ -161,7 +189,8 @@ export const WidgetFrame: React.FunctionComponent<IWidgetFrameProps> = (props) =
         </div>
       </div>
 
-      <div className={`${styles.body} ${definition?.contentSurface === 'none' ? styles.bodyBare : ''}`}>
+      <div ref={bodyRef} className={`${styles.body} ${definition?.contentSurface === 'none' ? styles.bodyBare : ''}`}>
+        <div ref={contentRef} className={styles.content}>
         {definition ? (
           <WidgetErrorBoundary widgetName={name}>{definition.render(context)}</WidgetErrorBoundary>
         ) : (
@@ -170,6 +199,7 @@ export const WidgetFrame: React.FunctionComponent<IWidgetFrameProps> = (props) =
             text={`This widget (${instance.type}) is no longer available. Remove it in edit mode.`}
           />
         )}
+        </div>
       </div>
 
       {isSettingsOpen && (
@@ -182,7 +212,11 @@ export const WidgetFrame: React.FunctionComponent<IWidgetFrameProps> = (props) =
           ariaLabel={`${name} settings`}
         >
           <div className={`${styles.settingsCallout} ${definition?.isSettingsWide ? styles.settingsCalloutWide : ''}`}>
-            <div className={styles.settingsTitle}>{name}</div>
+            <div className={styles.settingsTitle}>
+              <span>{name}</span>
+              <IconButton iconProps={{ iconName: 'Cancel' }} ariaLabel="Close settings"
+                onClick={() => setIsSettingsOpen(false)} />
+            </div>
             <div className={styles.settingsStack}>
               <TextField
                 label="Title"
@@ -197,6 +231,9 @@ export const WidgetFrame: React.FunctionComponent<IWidgetFrameProps> = (props) =
                   views={views}
                   fallback={definition?.defaultView ?? views[0]}
                 />
+              )}
+              {!!definition?.supportedViews?.length && !definition.hasCustomPaginationSettings && (
+                <PaginationSettings context={context} />
               )}
               {definition?.renderSettings && definition.renderSettings(context)}
             </div>

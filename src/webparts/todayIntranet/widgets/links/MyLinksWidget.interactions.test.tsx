@@ -179,6 +179,14 @@ describe('My links interactions and widget contract', () => {
     expect(container.querySelector('[role="status"]')?.textContent).toContain('Page 1 of 1');
   });
 
+  it('can disable pagination without hiding links or changing the saved page size', () => {
+    context.settings = { ...context.settings, paginationEnabled: false, itemsPerPage: 3 };
+    render();
+    expect(container.querySelectorAll('a')).toHaveLength(12);
+    expect(container.querySelector('nav')).toBeNull();
+    expect(updateSettings).not.toHaveBeenCalled();
+  });
+
   it('keeps separate instances independently searchable', () => {
     act(() => {
       ReactDom.render(<><MyLinksWidget context={context} /><MyLinksWidget context={{ ...context, instanceId: 'second' }} /></>, container);

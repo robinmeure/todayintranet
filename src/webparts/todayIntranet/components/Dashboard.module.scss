@@ -23,6 +23,14 @@
   font-size: 24px;
   line-height: 32px;
   font-weight: 600;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 480px) {
+  .dashboard {
+    padding-inline: visual.$space-md;
+  }
 }
 
 .layoutBadge {
@@ -52,17 +60,16 @@
 :global {
   .react-grid-layout {
     position: relative;
-    transition: height 200ms ease;
   }
 
   .react-grid-item {
     transition: all 200ms ease;
-    transition-property: left, top, width, height;
+    transition-property: left, top;
     box-sizing: border-box;
   }
 
   .react-grid-item.cssTransforms {
-    transition-property: transform, width, height;
+    transition-property: transform;
   }
 
   .react-grid-item.resizing {

@@ -75,6 +75,8 @@ export interface IWidgetListItem {
   title: string;
   /** Secondary line. Empty and undefined entries are dropped, the rest joined with `·`. */
   meta?: (string | undefined)[];
+  /** Agenda metadata, when the leading date badge already supplies the day. */
+  agendaMeta?: (string | undefined)[];
   /** Optional third line, wrapped over at most two lines. */
   description?: string;
   /** Fluent UI icon shown in front of the text. */

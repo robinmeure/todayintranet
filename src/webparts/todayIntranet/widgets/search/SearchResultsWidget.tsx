@@ -8,6 +8,7 @@ import {
   WidgetItemsView,
   WidgetView,
   numberSetting,
+  paginationSize,
   viewSetting
 } from '../content';
 import { useSearchData } from './useSearchData';
@@ -90,6 +91,7 @@ export const SearchResultsWidget: React.FunctionComponent<{ context: IWidgetCont
     >
       {(results) => (
         <WidgetItems
+          pageSize={paginationSize(context)}
           view={view}
           ariaLabel="Search results"
           items={results.rows.map((row, index) => toItem(row, index, locale))}

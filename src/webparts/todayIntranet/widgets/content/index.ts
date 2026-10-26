@@ -13,6 +13,7 @@ export * from './WidgetCards';
 export * from './WidgetCollections';
 export * from './WidgetCollectionControls';
 export * from './WidgetItems';
+export * from './WidgetPagination';
 export * from './WidgetList';
 export * from './WidgetProse';
 export * from './WidgetSettings';

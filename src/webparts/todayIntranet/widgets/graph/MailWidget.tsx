@@ -12,6 +12,7 @@ import {
   WidgetView,
   booleanSetting,
   numberSetting,
+  paginationSize,
   viewSetting
 } from '../content';
 
@@ -91,6 +92,7 @@ export const MailWidget: React.FunctionComponent<{ context: IWidgetContext }> = 
     >
       {(messages) => (
         <WidgetItems
+          pageSize={paginationSize(context)}
           view={view}
           ariaLabel={unreadOnly ? 'Unread messages' : 'Recent messages'}
           items={messages.map((message, index) => toItem(message, index, locale))}

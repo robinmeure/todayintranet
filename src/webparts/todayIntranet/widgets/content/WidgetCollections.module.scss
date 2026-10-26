@@ -12,15 +12,49 @@
   min-width: 0;
 }
 
-.toolbar {
+.calendar {
+  min-width: 0;
+  container-type: inline-size;
+}
+
+.calendarEmpty {
+  @include visual.themed-border('[theme:themePrimary, default:#0078d4]');
   display: flex;
+  align-items: flex-start;
+  gap: visual.$space-sm;
+  max-width: 560px;
+  padding: visual.$space-sm;
+  border-radius: visual.$radius-sm;
+  overflow-wrap: anywhere;
+
+  > i {
+    flex: 0 0 auto;
+    margin-top: 2px;
+    color: '[theme:themeDark, default:#005a9e]';
+  }
+
+  > div {
+    min-width: 0;
+  }
+
+  p {
+    margin: visual.$space-xs 0 0;
+  }
+}
+
+.toolbar {
+  display: grid;
+  grid-template-columns: auto minmax(160px, 196px) 1fr;
+  grid-template-areas: 'ranges date sync';
   align-items: center;
   flex-wrap: wrap;
   gap: visual.$space-md;
-  margin-bottom: visual.$space-lg;
+  margin-bottom: 24px;
 }
 
 .rangeTabs {
+  grid-area: ranges;
+  justify-self: start;
   display: inline-flex;
   flex-wrap: wrap;
   border-radius: visual.$radius-lg;
@@ -51,10 +85,13 @@
 }
 
 .datePicker {
+  grid-area: date;
   @include visual.themed-border('[theme:neutralSecondary, default:#605e5c]');
   display: flex;
   align-items: center;
   min-height: 40px;
+  min-width: 0;
+  box-sizing: border-box;
   padding: 0 visual.$space-md;
   border-radius: visual.$radius-lg;
 }
@@ -62,12 +99,20 @@
 .datePicker input {
   border: 0;
   max-width: 100%;
+  width: 100%;
+  min-width: 0;
   font: inherit;
   color: inherit;
   background: transparent;
 }
 
+.dateError {
+  grid-column: 1 / -1;
+}
+
 .syncButton {
+  grid-area: sync;
+  justify-self: end;
   display: inline-flex;
   align-items: center;
   gap: visual.$space-sm;
@@ -90,10 +135,10 @@
 .event {
   @include visual.themed-border('[theme:neutralTertiary, default:#a19f9d]', bottom);
   display: grid;
-  grid-template-columns: 76px minmax(0, 1fr) auto;
+  grid-template-columns: 68px minmax(0, 1fr) auto;
   align-items: center;
-  gap: visual.$space-lg;
-  min-height: 100px;
+  gap: 24px;
+  min-height: 68px;
   padding: visual.$space-sm 0;
 }
 
@@ -106,23 +151,24 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 76px;
+  gap: visual.$space-xs;
+  justify-self: start;
+  width: 68px;
+  min-height: 68px;
   padding: visual.$space-xs;
   box-sizing: border-box;
-  border-radius: 18px;
+  border-radius: visual.$radius-xl;
   text-align: center;
   background: var(--widget-tone-background);
   color: var(--widget-tone-text);
 }
 
 .datePrimary {
-  font-size: 17px;
-  line-height: 24px;
-  font-weight: 700;
+  @include visual.item-title;
 }
 
 .dateSecondary {
-  @include visual.meta;
+  @include visual.helper;
 }
 
 .eventDetails,
@@ -135,22 +181,14 @@
 
 .eventTitle,
 .linkTitle {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 17px;
-  line-height: 24px;
-  font-weight: 600;
+  @include visual.item-title;
+  overflow-wrap: anywhere;
   color: '[theme:neutralPrimary, default:#323130]';
 }
 
-.linkTitle {
-  font-size: visual.$text-size;
-  line-height: visual.$text-line-height;
-}
-
-.linkDescription {
-  @include visual.meta;
+.linkDescription,
+.eventDescription {
+  @include visual.text;
 }
 
 .titleIcon {
@@ -159,15 +197,20 @@
 }
 
 .eventMeta,
+.eventDescription,
 .linkDescription {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
   color: '[theme:neutralSecondary, default:#605e5c]';
+}
+
+.eventMeta {
+  @include visual.meta;
 }
 
 .eventActions {
   display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
   align-items: center;
   gap: visual.$space-sm;
 }
@@ -183,7 +226,8 @@
   border-radius: 20px;
   font-weight: 600;
   text-decoration: none;
-  white-space: nowrap;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   color: '[theme:neutralPrimary, default:#323130]';
   background: '[theme:white, default:#ffffff]';
 }
@@ -263,6 +307,7 @@ button.linkCard:hover {
 }
 
 .badge {
+  @include visual.helper;
   display: inline-flex;
   align-items: center;
   align-self: flex-start;
@@ -270,8 +315,6 @@ button.linkCard:hover {
   max-width: 100%;
   box-sizing: border-box;
   padding: 0 visual.$space-xs;
-  font-size: 10px;
-  line-height: 16px;
   border-radius: visual.$radius-sm;
   overflow-wrap: anywhere;
   color: var(--widget-tone-text);
@@ -290,14 +333,20 @@ button.linkCard:hover {
 }
 
 .pageButton {
-  width: 28px;
-  height: 28px;
+  min-width: 32px;
+  height: 32px;
   border: 0;
   border-radius: 50%;
   font: inherit;
   color: '[theme:neutralPrimary, default:#323130]';
   background: transparent;
   cursor: pointer;
+}
+
+.pageStatus {
+  @include visual.meta;
+  color: '[theme:neutralSecondary, default:#605e5c]';
+  margin-inline-start: visual.$space-sm;
 }
 
 .pageButton:disabled {
@@ -344,14 +393,58 @@ button.linkCard:hover {
   }
 }
 
-@container (max-width: 600px) {
+@container (max-width: 720px) {
+  .toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'ranges sync' 'date date';
+    row-gap: 24px;
+  }
+
+  .datePicker {
+    width: 196px;
+    max-width: 100%;
+    min-height: 48px;
+  }
+}
+
+@container (max-width: 440px) {
   .event {
-    grid-template-columns: 76px minmax(0, 1fr);
+    grid-template-columns: 60px minmax(0, 1fr) auto;
+    gap: visual.$space-sm;
+  }
+
+  .dateTile {
+    width: 60px;
+    min-height: 60px;
+  }
+
+  .rangeTab {
+    @include visual.meta;
+    padding-inline: visual.$space-sm;
+    min-height: 32px;
+  }
+
+  .syncButton {
+    padding-inline: visual.$space-sm;
+    min-width: 32px;
+  }
+
+  .syncButton span {
+    display: none;
   }
 
   .eventActions {
-    grid-column: 2;
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: stretch;
+    gap: visual.$space-xs;
+  }
+
+  .actionButton {
+    @include visual.meta;
+    justify-content: center;
+    padding-inline: visual.$space-sm;
+    min-height: 32px;
+    gap: visual.$space-xs;
   }
 }
 
@@ -361,9 +454,14 @@ button.linkCard:hover {
   }
 }
 
-@container (max-width: 360px) {
-  .actionButton span {
-    display: none;
+@container (max-width: 280px) {
+  .event {
+    grid-template-columns: minmax(0, 1fr);
+    gap: visual.$space-sm;
+  }
+
+  .eventActions {
+    grid-column: 1;
   }
 
   .linkCard {

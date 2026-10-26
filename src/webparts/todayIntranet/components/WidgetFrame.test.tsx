@@ -1,16 +1,6 @@
 /* eslint-disable @rushstack/pair-react-dom-render-unmount -- Each test unmounts its container in afterEach. */
 
 jest.mock('../widgets/WidgetRegistry', () => ({ WidgetRegistry: { get: jest.fn() } }));
-jest.mock('./WidgetFrame.module.scss', () => ({
-  frame: 'frame',
-  title: 'widget-title',
-  header: 'header',
-  body: 'body',
-  bodyBare: 'body-bare',
-  experienceLink: 'experience-link',
-  actions: 'actions',
-  settingsCallout: 'settings-callout'
-}), { virtual: true });
 jest.mock('../widgets/content/WidgetContent.module.scss', () => ({}), { virtual: true });
 
 import * as React from 'react';
@@ -22,6 +12,7 @@ import { INudge, WidgetFrame } from './WidgetFrame';
 import { IWidgetInstance } from '../model/IDashboardLayout';
 import { IWidgetDefinition, IWidgetHostContext } from '../widgets/IWidget';
 import { WidgetRegistry } from '../widgets/WidgetRegistry';
+import styles from './WidgetFrame.module.scss';
 
 const clock: IWidgetDefinition = {
   type: 'test.clock',
@@ -44,13 +35,15 @@ interface ITestWidgetProps {
   type?: string;
   title?: string;
   isEditing?: boolean;
+  onContentHeightChange?(instanceId: string, height: number): void;
 }
 
 const TestWidget: React.FunctionComponent<ITestWidgetProps> = ({
   id = 'clock-1',
   type = clock.type,
   title,
-  isEditing = true
+  isEditing = true,
+  onContentHeightChange
 }) => {
   const [instance, setInstance] = React.useState<IWidgetInstance>({ id, type, title, x: 0, y: 0, w: 2, h: 2 });
   const context: IWidgetHostContext = {
@@ -72,6 +65,7 @@ const TestWidget: React.FunctionComponent<ITestWidgetProps> = ({
         onUpdateTitle(instanceId, next);
         setInstance((current) => ({ ...current, title: next }));
       }}
+      onContentHeightChange={onContentHeightChange}
     />
   );
 };
@@ -129,6 +123,40 @@ describe('WidgetFrame titles', () => {
     container.remove();
     jest.clearAllTimers();
     jest.useRealTimers();
+    jest.restoreAllMocks();
+  });
+
+  it('reports natural content growth and shrinkage and disconnects its observer', () => {
+    let report = (): void => { throw new Error('Observer not connected'); };
+    const disconnect = jest.fn();
+    const observe = jest.fn();
+    const original = Object.getOwnPropertyDescriptor(window, 'ResizeObserver');
+    const observer = jest.fn().mockImplementation((callback: () => void) => {
+      report = callback;
+      return { observe, disconnect };
+    });
+    Object.defineProperty(window, 'ResizeObserver', { configurable: true, value: observer });
+    let contentHeight = 500;
+    jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement): DOMRect {
+      return { height: this.classList.contains(styles.content) ? contentHeight : this.classList.contains(styles.header) ? 44 : 0,
+        width: 300, x: 0, y: 0, top: 0, bottom: 0, left: 0, right: 0, toJSON: () => ({}) };
+    });
+    const onHeight = jest.fn<void, [string, number]>();
+    try {
+      act(() => { ReactDom.render(<TestWidget onContentHeightChange={onHeight} />, container); });
+      expect(onHeight).toHaveBeenLastCalledWith('clock-1', 544);
+      expect(observe).toHaveBeenCalledTimes(2);
+      contentHeight = 900;
+      act(() => report());
+      expect(onHeight).toHaveBeenLastCalledWith('clock-1', 944);
+      contentHeight = 100;
+      act(() => report());
+      expect(onHeight).toHaveBeenLastCalledWith('clock-1', 144);
+      act(() => { ReactDom.unmountComponentAtNode(container); });
+      expect(disconnect).toHaveBeenCalledTimes(1);
+    } finally {
+      Object.defineProperty(window, 'ResizeObserver', original ?? { configurable: true, value: undefined });
+    }
   });
 
   it('offers title settings even when the widget has no settings or alternate views', () => {
@@ -153,14 +181,32 @@ describe('WidgetFrame titles', () => {
 
     expect(onUpdateTitle).toHaveBeenLastCalledWith('clock-1', '  Office time  ');
     expect(container.querySelector('section')?.getAttribute('aria-label')).toBe('Office time');
-    expect(container.querySelector('.widget-title')?.textContent).toBe('Office time');
-    expect(container.querySelector('.widget-title')?.getAttribute('title')).toBe('Office time');
+    expect(container.querySelector(`.${styles.title}`)?.textContent).toBe('Office time');
+    expect(container.querySelector(`.${styles.title}`)?.getAttribute('title')).toBe('Office time');
     expect(button('Office time settings')).toBeDefined();
     expect(button('Refresh Office time')).toBeDefined();
     expect(button('Remove Office time')).toBeDefined();
     expect(document.querySelector('[role="dialog"]')?.getAttribute('aria-label')).toBe('Office time settings');
     expect(onUpdateSettings).not.toHaveBeenCalled();
     expect(clock.displayName).toBe('Clock');
+  });
+
+  it('closes settings with its explicit close button', () => {
+    act(() => { ReactDom.render(<TestWidget />, container); });
+    openSettings('Clock settings', 'Clock');
+    act(() => { Simulate.click(button('Close settings')); });
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it('does not duplicate a widget-owned pagination setting', () => {
+    jest.mocked(WidgetRegistry.get).mockReturnValue({
+      ...clock, supportedViews: ['list'], hasCustomPaginationSettings: true,
+      renderSettings: () => <span>Custom paging controls</span>
+    });
+    act(() => { ReactDom.render(<TestWidget />, container); });
+    openSettings('Clock settings', 'Clock');
+    expect(document.body.textContent).toContain('Custom paging controls');
+    expect(document.body.textContent).not.toContain('Use pagination');
   });
 
   it.each(['', '   '])('restores the default name for a cleared title (%j)', (value) => {
@@ -171,7 +217,7 @@ describe('WidgetFrame titles', () => {
 
     changeTitle(input, value);
 
-    expect(container.querySelector('.widget-title')?.textContent).toBe('Clock');
+    expect(container.querySelector(`.${styles.title}`)?.textContent).toBe('Clock');
     expect(container.querySelector('section')?.getAttribute('aria-label')).toBe('Clock');
     expect(button('Clock settings')).toBeDefined();
   });
@@ -181,7 +227,7 @@ describe('WidgetFrame titles', () => {
       ReactDom.render(<TestWidget title="Office time" isEditing={false} />, container);
     });
 
-    expect(container.querySelector('.widget-title')?.textContent).toBe('Office time');
+    expect(container.querySelector(`.${styles.title}`)?.textContent).toBe('Office time');
     expect(container.querySelectorAll('button')).toHaveLength(0);
   });
 
@@ -190,7 +236,7 @@ describe('WidgetFrame titles', () => {
     expect(container.querySelector('.header h3')?.textContent).toBe('Clock');
     expect(container.querySelector('.body h3')).toBeNull();
     expect(container.querySelector('.header [data-icon-name="Clock"]')).toBeNull();
-    expect(container.querySelector('.body')?.classList.contains('body-bare')).toBe(false);
+    expect(container.querySelector('.body')?.classList.contains(styles.bodyBare)).toBe(false);
   });
 
   it('places an existing footerLink beside the heading, without duplicating it below the content', () => {
@@ -216,18 +262,18 @@ describe('WidgetFrame titles', () => {
       render: (context) => <span>Refresh {context.refreshToken}</span>
     });
     act(() => { ReactDom.render(<TestWidget isEditing={false} />, container); });
-    expect(container.querySelector('.experience-link')).toBeNull();
+    expect(container.querySelector(`.${styles.experienceLink}`)).toBeNull();
     expect(container.querySelector('.body')?.textContent).toBe('Refresh 0');
     act(() => { Simulate.click(button('Refresh Clock')); });
     expect(container.querySelector('.body')?.textContent).toBe('Refresh 1');
-    expect(container.querySelector('.experience-link')?.getAttribute('href')).toBe('https://example.test/clock-1');
+    expect(container.querySelector(`.${styles.experienceLink}`)?.getAttribute('href')).toBe('https://example.test/clock-1');
     expect(onUpdateSettings).not.toHaveBeenCalled();
   });
 
   it('allows a definition to supply its own content surfaces', () => {
     jest.mocked(WidgetRegistry.get).mockReturnValue({ ...clock, contentSurface: 'none' });
     act(() => { ReactDom.render(<TestWidget isEditing={false} />, container); });
-    expect(container.querySelector('.body-bare')?.textContent).toBe('09:41');
+    expect(container.querySelector(`.${styles.bodyBare}`)?.textContent).toBe('09:41');
     expect(container.querySelector('.header h3')?.textContent).toBe('Clock');
   });
 
@@ -266,7 +312,7 @@ describe('WidgetFrame titles', () => {
 
     changeTitle(input, 'Office time');
 
-    expect(Array.from(container.querySelectorAll('.widget-title')).map((node) => node.textContent))
+    expect(Array.from(container.querySelectorAll(`.${styles.title}`)).map((node) => node.textContent))
       .toEqual(['Office time', 'Second clock']);
     expect(onUpdateTitle).toHaveBeenCalledTimes(1);
     expect(onUpdateTitle).toHaveBeenCalledWith('clock-1', 'Office time');
@@ -290,8 +336,8 @@ describe('WidgetFrame titles', () => {
       ReactDom.render(<TestWidget title={title} isEditing={false} />, container);
     });
 
-    expect(container.querySelector('.widget-title')?.textContent).toBe(title);
-    expect(container.querySelector('.widget-title')?.getAttribute('title')).toBe(title);
+    expect(container.querySelector(`.${styles.title}`)?.textContent).toBe(title);
+    expect(container.querySelector(`.${styles.title}`)?.getAttribute('title')).toBe(title);
     expect(container.querySelector('b')).toBeNull();
   });
 

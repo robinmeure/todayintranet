@@ -27,10 +27,10 @@ export const WidgetAgenda: React.FunctionComponent<ICollectionProps> = ({ items,
                 <Icon iconName="OpenInNewWindow" className={styles.titleIcon} aria-hidden={true} />
               </a>
             ) : <span className={styles.eventTitle}>{item.title}</span>}
-            {(item.meta ?? []).filter((text) => !!text).map((text, metaIndex) => (
+            {(item.agendaMeta ?? item.meta ?? []).filter((text) => !!text).map((text, metaIndex) => (
               <span className={styles.eventMeta} key={metaIndex} title={text}>{text}</span>
             ))}
-            {item.description && <span className={styles.eventMeta} title={item.description}>{item.description}</span>}
+            {item.description && <span className={styles.eventDescription} title={item.description}>{item.description}</span>}
           </div>
           <div className={styles.eventActions}>
             {(item.actions ?? []).map((action) => (

@@ -3,6 +3,7 @@ import { IWidgetContext, IWidgetLink } from '../IWidget';
 import {
   IWidgetListItem,
   NumberSetting,
+  paginationSize,
   SettingsSurface,
   WidgetItems,
   WidgetItemsView,
@@ -74,6 +75,7 @@ export const NewsWidget: React.FunctionComponent<{ context: IWidgetContext }> = 
     >
       {(results) => (
         <WidgetItems
+          pageSize={paginationSize(context)}
           view={view}
           ariaLabel="News"
           items={results.rows.map((row, index) => toItem(row, index, locale, scope !== 'site'))}

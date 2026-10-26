@@ -2,7 +2,10 @@ import * as React from 'react';
 import { Icon } from '@fluentui/react/lib/Icon';
 import { IWidgetContext, IWidgetLink } from '../IWidget';
 import { useGraphData, IGraphDataResult } from './useGraphData';
-import { NumberSetting, SettingsSurface, ToggleSetting, WidgetItemsView, booleanSetting, numberSetting } from '../content';
+import {
+  NumberSetting, SettingsSurface, ToggleSetting, WidgetItemsView, booleanSetting, numberSetting,
+  paginationSize, useWidgetPagination, WidgetPagination
+} from '../content';
 import { calendarDateKey } from './calendarData';
 import {
   advanceTaskHistory, AggregatedTask, emptyTaskHistory, formatTaskDue, ITaskHistory, loadTaskSource, TASK_SOURCE_LABELS,
@@ -142,7 +145,10 @@ export const TasksWidget: React.FunctionComponent<{ context: IWidgetContext }> =
     if (received[source]) { tasks.push(...history.tasks[source]); }
   });
   const ordered = sortTasks(tasks.filter((task) => !dueOnly || task.due), state.document);
-  const visible = ordered.slice(0, maxItems);
+  const pageSize = paginationSize(context);
+  const pagination = useWidgetPagination(pageSize ? ordered : ordered.slice(0, maxItems), pageSize,
+    `${scope}:${sources.join(',')}:${dueOnly}`);
+  const visible = pagination.items;
   const incomplete = sources.some((source) => states[source].status !== 'ready' ||
     !states[source].data?.complete || states[source].refreshError || states[source].isRefreshing);
   const locale = context.spContext.pageContext.cultureInfo.currentUICultureName || undefined;
@@ -207,7 +213,7 @@ export const TasksWidget: React.FunctionComponent<{ context: IWidgetContext }> =
         </div> : current.status === 'loading' || current.isRefreshing
           ? <p key={source} className={styles.status} role="status">Loading {TASK_SOURCE_LABELS[source]}...</p> : null;
       })}
-      <div className={styles.scroll} tabIndex={0} role="region" aria-label="Open tasks table">
+      <div className={styles.scroll} role="region" aria-label="Open tasks table">
         <table ref={table} className={styles.table}>
           <thead><tr><th scope="col" className={styles.number}><span className={styles.srOnly}>Order</span></th><th scope="col">Task name</th>
             <th scope="col">Quick look</th><th scope="col" className={styles.due}>Due date</th>
@@ -285,7 +291,11 @@ export const TasksWidget: React.FunctionComponent<{ context: IWidgetContext }> =
       {!visible.length && <p role="status" className={styles.status}>{incomplete
         ? 'No tasks to show yet. Some sources are still loading or unavailable.'
         : dueOnly ? 'No open tasks with a due date in these sources.' : 'No open tasks in these sources.'}</p>}
-      {visible.length < ordered.length && <p className={styles.status}>Showing {visible.length} of {ordered.length} loaded tasks. Adjust the item limit in tile settings.</p>}
+      <WidgetPagination page={pagination.page} totalPages={pagination.totalPages}
+        onPageChange={(page) => { cancelDrag(); pagination.setPage(page); }} ariaLabel="Tasks" />
+      {!pageSize && visible.length < ordered.length && <p className={styles.status}>
+        Showing {visible.length} of {ordered.length} loaded tasks. Adjust the item limit or enable pagination in tile settings.
+      </p>}
       {error && <p role="alert" className={styles.notice}>{error}</p>}
       <span role="status" aria-live="polite" className={styles.srOnly}>{announcement}</span>
       {(state.status !== 'saved' || context.isEditing) && <details className={styles.organization}>

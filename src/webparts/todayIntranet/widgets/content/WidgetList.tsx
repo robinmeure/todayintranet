@@ -38,12 +38,12 @@ const WidgetListRow: React.FunctionComponent<{
         </span>
         {meta && <span className={styles.itemMeta}>{meta}</span>}
         {item.description && <span className={styles.itemDescription}>{item.description}</span>}
+        {item.badge && (
+          <span className={`${styles.itemBadge} ${item.badge.tone ? toneClass(item.badge.tone) : ''}`}>
+            {item.badge.text}
+          </span>
+        )}
       </span>
-      {item.badge && (
-        <span className={`${styles.itemBadge} ${item.badge.tone ? toneClass(item.badge.tone) : ''}`}>
-          {item.badge.text}
-        </span>
-      )}
     </>
   );
 

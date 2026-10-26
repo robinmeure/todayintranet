@@ -1,3 +1,5 @@
+/* eslint-disable @rushstack/pair-react-dom-render-unmount -- Each test unmounts its container in afterEach. */
+
 jest.mock('../content/WidgetCollections.module.scss', () => ({
   collection: 'collection', agenda: 'agenda', datePrimary: 'datePrimary', dateSecondary: 'dateSecondary',
   actionButton: 'actionButton'
@@ -12,7 +14,7 @@ import { initializeIcons } from '@fluentui/react/lib/Icons';
 import type { MSGraphClientV3 } from '@microsoft/sp-http';
 import type { WebPartContext } from '@microsoft/sp-webpart-base';
 import { Event } from '@microsoft/microsoft-graph-types';
-import { CalendarWidget } from './CalendarWidget';
+import { CalendarWidget, CalendarWidgetSettings } from './CalendarWidget';
 import { IWidgetContext } from '../IWidget';
 import { clearWidgetDataCache } from '../data/WidgetDataCache';
 import { WidgetAdaptiveCard } from '../content/WidgetAdaptiveCard';
@@ -129,7 +131,27 @@ describe('calendar interactions', () => {
     await act(async () => { jest.advanceTimersByTime(24 * 60000); });
     expect(container.querySelector('.datePrimary')?.textContent).toBe('Now');
     await act(async () => { jest.advanceTimersByTime(30 * 60000); });
-    expect(container.textContent).toContain('Nothing else scheduled today.');
+    expect(container.textContent).toContain('No meetings scheduled');
+    expect(container.textContent).toContain("Looks like you don't have any meetings for today.");
+  });
+
+  it('renders the reference badge lines for Now, minutes, Today and Tomorrow in the agenda', async () => {
+    const tomorrow = new Date(2026, 8, 22, 10);
+    get.mockResolvedValue({ value: [
+      meeting('In progress', 13),
+      meeting('Starting soon', 13, 15),
+      meeting('Later today', 15),
+      { ...meeting('Tomorrow meeting', 10),
+        start: { dateTime: tomorrow.toISOString(), timeZone: 'UTC' },
+        end: { dateTime: new Date(tomorrow.getTime() + 30 * 60000).toISOString(), timeZone: 'UTC' } }
+    ] });
+    await render();
+    await click('Upcoming');
+    const rows = Array.from(container.querySelectorAll('ol[aria-label="Calendar events"] > li'));
+    expect(rows.map((row) => row.querySelector('.datePrimary')?.textContent))
+      .toEqual(['Now', '15', 'Today', 'Tue 22']);
+    expect(rows.map((row) => row.querySelector('.dateSecondary')?.textContent))
+      .toEqual([undefined, 'minutes', 'Mon 21', 'Tomorrow']);
   });
 
   it('updates day-dependent queries after midnight', async () => {
@@ -156,7 +178,7 @@ describe('calendar interactions', () => {
     expect(container.textContent).not.toContain('Later meeting');
     expect(container.querySelector('[aria-label="Loading your calendar..."]')).not.toBeNull();
     await act(async () => { resolvePending({ value: [] }); });
-    expect(container.textContent).toContain('Nothing scheduled tomorrow.');
+    expect(container.textContent).toContain("Looks like you don't have any meetings for tomorrow.");
   });
 
   it('keeps same-range data during sync and reports transient errors', async () => {
@@ -223,10 +245,67 @@ describe('calendar interactions', () => {
     expect(latest.endDateTime).toBe(end.toISOString());
   });
 
-  it.each([[1e200, 20], [-5, 1], [3.8, 3], [undefined, 5]])('bounds visible events (%p)', async (maxItems, expected) => {
+  it.each([[1e200, 6], [-5, 3], [3.8, 3], [undefined, 5]])('migrates the old display limit to bounded page size (%p)', async (maxItems, expected) => {
     context.settings = { maxItems };
     get.mockResolvedValue({ value: Array.from({ length: 25 }, (_, index) => meeting(`Event ${index}`, 14)) });
     await render();
     expect(container.querySelectorAll('ol > li')).toHaveLength(expected);
+  });
+
+  it('pages every loaded meeting and shows all of them with pagination disabled', async () => {
+    context.settings = { maxItems: 1, itemsPerPage: 3 };
+    get.mockResolvedValue({ value: Array.from({ length: 8 }, (_, index) => meeting(`Event ${index}`, 14)) });
+    await render();
+    expect(container.querySelectorAll('ol > li')).toHaveLength(3);
+    const next = container.querySelector<HTMLButtonElement>('[aria-label="Next calendar events page"]');
+    if (!next) { throw new Error('Missing next page button'); }
+    await act(async () => { Simulate.click(next); });
+    expect(container.textContent).toContain('Event 3');
+    expect(container.textContent).not.toContain('Event 0');
+    context.settings = { ...context.settings, paginationEnabled: false };
+    await render();
+    expect(container.querySelectorAll('ol > li')).toHaveLength(8);
+    expect(container.querySelector('nav')).toBeNull();
+    expect(get).toHaveBeenCalledTimes(1);
+  });
+
+  it('changes time format without refetching events', async () => {
+    context.settings = { timeFormat: '24' };
+    await render();
+    expect(container.textContent).toContain('13:25');
+    context.settings = { timeFormat: '12' };
+    await render();
+    expect(container.textContent).toContain('1:25 pm');
+    expect(get).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders a contextual empty notice for the chosen period', async () => {
+    get.mockResolvedValue({ value: [] });
+    await render();
+    expect(container.textContent).toContain("Looks like you don't have any meetings for today.");
+    await click('Tomorrow');
+    expect(container.textContent).toContain("Looks like you don't have any meetings for tomorrow.");
+    await click('Upcoming');
+    expect(container.textContent).toContain('the next 7 days');
+    await chooseDate('2026-09-24');
+    expect(container.textContent).toContain('Thursday, 24 September 2026');
+  });
+
+  it('offers a bounded slider and locale-default time format without losing other settings', async () => {
+    context.settings = { itemsPerPage: 4, unrelated: 'preserve' };
+    await act(async () => { ReactDom.render(<CalendarWidgetSettings context={context} />, container); });
+    const slider = container.querySelector<HTMLElement>('[role="slider"]');
+    if (!slider) { throw new Error('Missing meeting count slider'); }
+    expect(slider.getAttribute('aria-valuemin')).toBe('3');
+    expect(slider.getAttribute('aria-valuemax')).toBe('6');
+    expect(slider.getAttribute('aria-valuenow')).toBe('4');
+    act(() => { Simulate.keyDown(slider, { which: 39, keyCode: 39, key: 'ArrowRight' }); });
+    expect(context.updateSettings).toHaveBeenCalledWith({ ...context.settings, itemsPerPage: 5 });
+    const radio = container.querySelector<HTMLInputElement>('input[type="radio"][id$="-12"]');
+    const selected = container.querySelector<HTMLInputElement>('input[type="radio"][id$="-24"]');
+    expect(selected?.checked).toBe(true);
+    if (!radio) { throw new Error('Missing AM/PM option'); }
+    act(() => { Simulate.change(radio); });
+    expect(context.updateSettings).toHaveBeenCalledWith({ ...context.settings, timeFormat: '12' });
   });
 });

@@ -3,6 +3,7 @@ import { Icon } from '@fluentui/react/lib/Icon';
 import { IWidgetListItem, WidgetItemsView } from './IWidgetContent';
 import { WidgetItems } from './WidgetItems';
 import { WidgetEmpty } from './WidgetStates';
+import { useWidgetPagination, WidgetPagination } from './WidgetPagination';
 import styles from './WidgetCollections.module.scss';
 
 interface IDateToolbarProps {
@@ -44,20 +45,22 @@ export const WidgetDateToolbar: React.FunctionComponent<IDateToolbarProps> = (pr
     <button
       type="button"
       className={styles.syncButton}
+      aria-label={props.isRefreshing ? 'Syncing calendar' : 'Sync calendar'}
+      title={props.isRefreshing ? 'Syncing calendar' : 'Sync calendar'}
       disabled={props.isRefreshing}
       onClick={props.onRefresh}
     >
       <Icon iconName="Sync" aria-hidden={true} />
       <span>{props.isRefreshing ? 'Syncing...' : 'Sync calendar'}</span>
     </button>
-    {props.dateError && <span role="alert">{props.dateError}</span>}
+    {props.dateError && <span role="alert" className={styles.dateError}>{props.dateError}</span>}
   </div>
 );
 
 interface IFilteredItemsProps {
   items: IWidgetListItem[];
   view: WidgetItemsView;
-  itemsPerPage: number;
+  itemsPerPage?: number;
   ariaLabel: string;
   emptyText?: string;
   emptyState?: React.ReactNode;
@@ -67,19 +70,12 @@ export const WidgetFilteredItems: React.FunctionComponent<IFilteredItemsProps> =
   items, view, itemsPerPage, ariaLabel, emptyText, emptyState
 }) => {
   const [query, setQuery] = React.useState('');
-  const [page, setPage] = React.useState(1);
   const needle = query.trim().toLowerCase();
   const filtered = items.filter((item) =>
     [item.title, item.href, item.description, item.badge?.text, ...(item.meta ?? [])].filter(Boolean).join(' ').toLowerCase()
       .indexOf(needle) >= 0
   );
-  const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
-  const currentPage = Math.min(page, totalPages);
-  const firstPage = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
-  const pages: number[] = [];
-  for (let index = firstPage; index <= Math.min(totalPages, firstPage + 4); index++) {
-    pages.push(index);
-  }
+  const pagination = useWidgetPagination(filtered, itemsPerPage, needle);
 
   return (
     <div className={styles.collectionStack}>
@@ -90,42 +86,24 @@ export const WidgetFilteredItems: React.FunctionComponent<IFilteredItemsProps> =
             type="search"
             placeholder="Find your link"
             value={query}
-            onChange={(event) => { setQuery(event.currentTarget.value); setPage(1); }}
+            onChange={(event) => setQuery(event.currentTarget.value)}
           />
           <Icon iconName="Search" aria-hidden={true} />
         </label>
       </div>
       <div className={styles.srOnly} role="status" aria-live="polite">
-        {filtered.length === 1 ? '1 link found' : `${filtered.length} links found`}. Page {currentPage} of {totalPages}.
+        {filtered.length === 1 ? '1 link found' : `${filtered.length} links found`}.
+        {' '}Page {pagination.page} of {pagination.totalPages}.
       </div>
       {filtered.length ? (
         <WidgetItems
-          items={filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)}
+          items={pagination.items}
           view={view}
           ariaLabel={ariaLabel}
         />
       ) : emptyState ?? <WidgetEmpty iconName="Search" text={emptyText ?? `No links match "${query.trim()}".`} />}
-      {totalPages > 1 && (
-        <nav className={styles.pagination} aria-label="Links pages">
-          <button type="button" className={styles.pageButton} disabled={currentPage === 1}
-            aria-label="Previous links page" onClick={() => setPage(currentPage - 1)}>
-            <Icon iconName="ChevronLeft" aria-hidden={true} />
-          </button>
-          {pages.map((pageNumber) => (
-            <button type="button" key={pageNumber}
-              className={`${styles.pageButton} ${pageNumber === currentPage ? styles.pageButtonActive : ''}`}
-              aria-label={`Links page ${pageNumber}`}
-              aria-current={pageNumber === currentPage ? 'page' : undefined}
-              onClick={() => setPage(pageNumber)}>
-              {pageNumber}
-            </button>
-          ))}
-          <button type="button" className={styles.pageButton} disabled={currentPage === totalPages}
-            aria-label="Next links page" onClick={() => setPage(currentPage + 1)}>
-            <Icon iconName="ChevronRight" aria-hidden={true} />
-          </button>
-        </nav>
-      )}
+      <WidgetPagination page={pagination.page} totalPages={pagination.totalPages}
+        onPageChange={pagination.setPage} ariaLabel="Links" />
     </div>
   );
 };

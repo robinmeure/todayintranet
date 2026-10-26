@@ -6,10 +6,12 @@ $radius-sm: 4px;
 $radius-md: 6px;
 $radius-lg: 8px;
 $radius-xl: 16px;
-$text-size: 14px;
-$text-line-height: 20px;
-$meta-size: 12px;
-$meta-line-height: 16px;
+$text-size: 16px;
+$text-line-height: 24px;
+$meta-size: 14px;
+$meta-line-height: 20px;
+$helper-size: 12px;
+$helper-line-height: 16px;
 $font-family: 'Segoe UI', 'Segoe UI Web (West European)', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', sans-serif;
 $shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 
@@ -22,6 +24,30 @@ $shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 @mixin meta {
   font-size: $meta-size;
   line-height: $meta-line-height;
+}
+
+@mixin helper {
+  font-size: $helper-size;
+  line-height: $helper-line-height;
+}
+
+@mixin item-title {
+  @include text;
+  font-weight: 700;
+}
+
+@mixin widget-heading {
+  @include text;
+  font-size: 28px;
+  line-height: 28.5px;
+  font-weight: 400;
+}
+
+@mixin subsection-heading {
+  @include text;
+  font-size: 19px;
+  line-height: 28px;
+  font-weight: 700;
 }
 
 @mixin tone($text, $accent, $background) {

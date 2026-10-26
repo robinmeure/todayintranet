@@ -12,6 +12,7 @@ import {
   WidgetNotice,
   WidgetView,
   numberSetting,
+  paginationSize,
   textSetting,
   viewSetting
 } from '../content';
@@ -71,8 +72,8 @@ function privacyLabel(privacy: IEngageCommunity['privacy']): string | undefined 
 }
 
 const CommunityCard: React.FunctionComponent<{
-  card: IEngageCommunityCard; view: WidgetItemsView; locale: string | undefined;
-}> = ({ card, view, locale }) => {
+  card: IEngageCommunityCard; view: WidgetItemsView; locale: string | undefined; pageSize?: number;
+}> = ({ card, view, locale, pageSize }) => {
   const { community, memberCount, files, filesUnavailable } = card;
   const privacy = privacyLabel(community.privacy);
   return (
@@ -94,7 +95,8 @@ const CommunityCard: React.FunctionComponent<{
       <section aria-label="Recent community files">
         <h3 className={styles.sectionTitle}>Recent files</h3>
         {files.length > 0 ? (
-          <WidgetItems view={view} ariaLabel="Recent community files" items={files.map((file) => toItem(file, locale))} />
+          <WidgetItems pageSize={pageSize} view={view} ariaLabel="Recent community files"
+            items={files.map((file) => toItem(file, locale))} />
         ) : (
           <p className={styles.sectionNote}>
             {filesUnavailable ? 'Community files could not be loaded.' : 'No files have been shared in this community yet.'}
@@ -136,7 +138,7 @@ export const VivaEngageWidget: React.FunctionComponent<{ context: IWidgetContext
       loading={{ label: 'Loading community…', rows: 3 }}
       empty={{ iconName: 'Group', text: 'This community could not be found.' }}
     >
-      {(card) => <CommunityCard card={card} view={view} locale={locale} />}
+      {(card) => <CommunityCard card={card} view={view} locale={locale} pageSize={paginationSize(context)} />}
     </WidgetView>
   );
 };

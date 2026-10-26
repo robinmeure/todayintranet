@@ -87,4 +87,22 @@ describe('WidgetView stale fallback', () => {
     expect(container.textContent).toContain('Could not refresh. Showing data from');
     expect(container.textContent).toContain('Your inbox is empty.');
   });
+
+  it('keeps a custom empty presentation inside the stale-data treatment', () => {
+    act(() => {
+      ReactDom.render(
+        <WidgetView
+          state={{ status: 'ready', data: [], refreshError: { message: 'Service unavailable' } }}
+          empty={{ iconName: 'Calendar', text: 'Fallback empty' }}
+          emptyContent={<div>No meetings scheduled</div>}
+        >
+          {() => <div>Unexpected content</div>}
+        </WidgetView>,
+        container
+      );
+    });
+    expect(container.textContent).toContain('Could not refresh.');
+    expect(container.textContent).toContain('No meetings scheduled');
+    expect(container.textContent).not.toContain('Fallback empty');
+  });
 });

@@ -10,10 +10,9 @@
 .filters {
   display: flex;
   gap: visual.$space-xs;
-  overflow-x: auto;
+  flex-wrap: wrap;
   padding-bottom: visual.$space-sm;
   margin-bottom: visual.$space-lg;
-  @include visual.scrollbar;
 }
 
 .tasks button,
@@ -56,8 +55,8 @@
 }
 
 .scroll {
-  overflow-x: auto;
-  @include visual.scrollbar;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .table {
@@ -87,8 +86,8 @@
 .table a i { font-size: 10px; }
 .relaxed .table td { padding-top: visual.$space-lg; padding-bottom: visual.$space-lg; }
 
-.taskName { display: flex; align-items: center; gap: visual.$space-xs; }
-.title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.taskName { display: flex; align-items: flex-start; gap: visual.$space-xs; min-width: 0; }
+.title { @include visual.item-title; min-width: 0; overflow-wrap: anywhere; }
 .priority { position: relative; display: flex; align-items: center; justify-content: center; flex: 0 0 28px; width: 28px; height: 28px; }
 .tasks .priority { color: '[theme:themePrimary, default:#ff6200]'; }
 .priority select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }

@@ -9,7 +9,8 @@ interface ITestGridProps {
   layouts: Layouts;
   isDraggable: boolean;
   isResizable: boolean;
-  onLayoutChange(layout: Layout[]): void;
+  onDragStop(layout: Layout[], oldItem: Layout, newItem: Layout): void;
+  onResizeStop(layout: Layout[], oldItem: Layout, newItem: Layout): void;
   onBreakpointChange(breakpoint: string): void;
 }
 
@@ -199,13 +200,15 @@ describe('Dashboard persistence and recovery', () => {
     await click('Edit dashboard');
     expect(mockGrid.isResizable).toBe(true);
     await act(async () => {
-      mockGrid.onLayoutChange([{ i: 'one', x: 0, y: 0, w: 6, h: 5 }]);
+      const next = { i: 'one', x: 0, y: 0, w: 6, h: 5 };
+      mockGrid.onResizeStop([next], mockGrid.layouts.lg[0], next);
     });
     expect(frame().instance).toMatchObject({ w: 6, h: 5, settings: initial.widgets[0].settings });
     await act(async () => { frame().onNudge('one', { dw: -1, dh: -1 }); });
     expect(frame().instance).toMatchObject({ w: 5, h: 4 });
     await act(async () => {
-      mockGrid.onLayoutChange([{ i: 'one', x: 0, y: 0, w: 3, h: 4 }]);
+      const next = { i: 'one', x: 0, y: 0, w: 3, h: 4 };
+      mockGrid.onResizeStop([next], mockGrid.layouts.lg[0], next);
     });
     const saved = store.save.mock.calls[store.save.mock.calls.length - 1][0];
     expect(saved.widgets[0]).toMatchObject({ w: 3, h: 4, settings: initial.widgets[0].settings });
@@ -329,7 +332,8 @@ describe('Dashboard persistence and recovery', () => {
     expect(mockGrid.isDraggable).toBe(false);
     expect(mockGrid.isResizable).toBe(false);
     act(() => {
-      mockGrid.onLayoutChange([{ i: 'one', x: 2, y: 2, w: 4, h: 4 }]);
+      const next = { i: 'one', x: 2, y: 2, w: 4, h: 4 };
+      mockGrid.onResizeStop([next], mockGrid.layouts.lg[0], next);
       frame().onUpdateTitle('one', 'Must not save');
       frame().onNudge('one', { dx: 1 });
     });
@@ -603,8 +607,35 @@ describe('Dashboard persistence and recovery', () => {
     await render();
     act(() => {
       mockGrid.onBreakpointChange('xs');
-      mockGrid.onLayoutChange([{ i: 'one', x: 0, y: 0, w: 4, h: 6 }]);
+      const next = { i: 'one', x: 0, y: 0, w: 4, h: 6 };
+      mockGrid.onResizeStop([next], mockGrid.layouts.lg[0], next);
     });
     expect(store.save).not.toHaveBeenCalled();
+  });
+
+  it('grows and shrinks derived heights without checkpointing or changing the preset', async () => {
+    await render();
+    await click('Edit dashboard');
+    act(() => { frame().onContentHeightChange?.('one', 850); });
+    expect(mockGrid.layouts.lg[0]).toMatchObject({ h: 13, minH: 13 });
+    expect(mockGrid.layouts.xs[0]).toMatchObject({ h: 13, minH: 13 });
+    expect(frame().instance.h).toBe(6);
+    expect(store.save).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('Two columns');
+    act(() => { frame().onContentHeightChange?.('one', 150); });
+    expect(mockGrid.layouts.lg[0]).toMatchObject({ h: 6, minH: 3 });
+    expect(store.save).not.toHaveBeenCalled();
+  });
+
+  it('does not save automatic heights when another widget is dragged', async () => {
+    await render();
+    await click('Edit dashboard');
+    act(() => { frame().onContentHeightChange?.('one', 850); });
+    await act(async () => {
+      const previous = mockGrid.layouts.lg[0];
+      const next = { ...previous, x: 2 };
+      mockGrid.onDragStop([next], previous, next);
+    });
+    expect(store.save.mock.calls[0][0].widgets[0]).toMatchObject({ x: 2, h: 6 });
   });
 });

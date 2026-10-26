@@ -141,6 +141,18 @@ describe('task table and organization interactions', () => {
     expect(titles()).toEqual(['Early task', 'Later task']);
     expect(get).toHaveBeenCalledTimes(2);
   });
+  it('pages all loaded tasks and resets pagination after filtering without refetching', async () => {
+    context.settings = { maxItems: 1, paginationEnabled: true, itemsPerPage: 2 };
+    await render();
+    expect(titles()).toEqual(['Early task', 'Later task']);
+    await click('Next tasks page');
+    expect(titles()).toEqual(['Undated task']);
+    context.settings = { ...context.settings, dueOnly: true };
+    await render();
+    expect(titles()).toEqual(['Early task', 'Later task']);
+    expect(container.querySelector('nav')).toBeNull();
+    expect(get).toHaveBeenCalledTimes(2);
+  });
   it('toggles sources accessibly without persisting temporary navigation', async () => {
     await render();
     button('Planner').focus();

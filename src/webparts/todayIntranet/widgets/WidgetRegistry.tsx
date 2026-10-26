@@ -43,6 +43,7 @@ const definitions: IWidgetDefinition[] = [
     requiredPermission: 'Calendars.ReadBasic',
     isRefreshable: true,
     footerLink: CALENDAR_LINK,
+    hasCustomPaginationSettings: true,
     supportedViews: ['agenda', ...ALL_ITEM_VIEWS],
     defaultView: CALENDAR_DEFAULT_VIEW,
     defaultSize: { w: 12, h: 6 },
@@ -102,6 +103,7 @@ const definitions: IWidgetDefinition[] = [
   },
   {
     type: 'custom.myLinks',
+    hasCustomPaginationSettings: true,
     displayName: 'My links',
     description: 'Searchable shortcuts to the tools and services you use most.',
     iconName: 'Link',
