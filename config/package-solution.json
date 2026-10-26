@@ -19,6 +19,18 @@
       {
         "resource": "Microsoft Graph",
         "scope": "Tasks.Read"
+      },
+      {
+        "resource": "Microsoft Graph",
+        "scope": "Community.Read.All"
+      },
+      {
+        "resource": "Microsoft Graph",
+        "scope": "GroupMember.Read.All"
+      },
+      {
+        "resource": "Microsoft Graph",
+        "scope": "Files.Read.All"
       }
     ],
     "developer": {

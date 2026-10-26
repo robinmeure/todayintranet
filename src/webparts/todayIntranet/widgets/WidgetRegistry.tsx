@@ -23,6 +23,13 @@ import {
 } from './graph/CalendarWidget';
 import { MailWidget, MailWidgetSettings, MAIL_LINK, MAIL_DEFAULT_VIEW } from './graph/MailWidget';
 import { TasksWidget, TasksWidgetSettings, TASKS_DEFAULT_VIEW, TASKS_VIEWS } from './graph/TasksWidget';
+import {
+  VivaEngageWidget,
+  VivaEngageWidgetSettings,
+  VIVA_ENGAGE_DEFAULT_VIEW,
+  VIVA_ENGAGE_PERMISSIONS,
+  vivaEngageFooterLink
+} from './graph/VivaEngageWidget';
 import { MyLinksWidget, MyLinksWidgetSettings, MY_LINKS_DEFAULT_VIEW } from './links/MyLinksWidget';
 
 const definitions: IWidgetDefinition[] = [
@@ -75,6 +82,23 @@ const definitions: IWidgetDefinition[] = [
     minSize: { w: 3, h: 4 },
     render: (context) => <TasksWidget context={context} />,
     renderSettings: (context) => <TasksWidgetSettings context={context} />
+  },
+  {
+    type: 'm365.vivaEngageCommunity',
+    displayName: 'Viva Engage community',
+    description: 'A Viva Engage community at a glance: details, member count and recently shared files.',
+    iconName: 'Group',
+    category: 'microsoft365',
+    keywords: ['viva', 'engage', 'yammer', 'community', 'communities', 'social'],
+    requiredPermission: VIVA_ENGAGE_PERMISSIONS,
+    isRefreshable: true,
+    footerLink: vivaEngageFooterLink,
+    supportedViews: ALL_ITEM_VIEWS,
+    defaultView: VIVA_ENGAGE_DEFAULT_VIEW,
+    defaultSize: { w: 4, h: 6 },
+    minSize: { w: 3, h: 4 },
+    render: (context) => <VivaEngageWidget context={context} />,
+    renderSettings: (context) => <VivaEngageWidgetSettings context={context} />
   },
   {
     type: 'custom.myLinks',

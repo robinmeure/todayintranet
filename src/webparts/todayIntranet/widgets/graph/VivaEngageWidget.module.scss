@@ -1,0 +1,73 @@
+@use '../../styles/widgetVisuals' as visual;
+
+.engage {
+  @include visual.text;
+  display: flex;
+  flex-direction: column;
+  gap: visual.$space-lg;
+  min-width: 0;
+  color: '[theme:neutralPrimary, default:#323130]';
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: visual.$space-xs;
+  min-width: 0;
+}
+
+.name {
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 600;
+  color: inherit;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+
+  &:hover {
+    text-decoration: underline;
+  }
+
+  &:focus-visible {
+    @include visual.focus-ring(2px);
+  }
+}
+
+.meta {
+  @include visual.meta;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: visual.$space-sm;
+  color: '[theme:neutralSecondary, default:#605e5c]';
+}
+
+.badge {
+  @include visual.themed-border;
+  border-radius: visual.$radius-xl;
+  padding: 0 visual.$space-sm;
+}
+
+.description {
+  margin: 0;
+  color: '[theme:neutralSecondary, default:#605e5c]';
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.sectionTitle {
+  @include visual.meta;
+  margin: 0 0 visual.$space-sm;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: '[theme:neutralSecondary, default:#605e5c]';
+}
+
+.sectionNote {
+  @include visual.meta;
+  margin: 0;
+  color: '[theme:neutralSecondary, default:#605e5c]';
+}

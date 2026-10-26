@@ -31,7 +31,8 @@ const DEFAULT_GRAPH_TTL_MS: number = 5 * 60 * 1000;
 const GRAPH_TTL_BY_SCOPE: Record<string, number> = {
   'Mail.ReadBasic': 3 * 60 * 1000,
   'Calendars.ReadBasic': 5 * 60 * 1000,
-  'Tasks.Read': 10 * 60 * 1000
+  'Tasks.Read': 10 * 60 * 1000,
+  'Community.Read.All': 15 * 60 * 1000
 };
 
 function toGraphError(error: unknown, scope: string): IWidgetError {

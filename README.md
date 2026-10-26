@@ -537,6 +537,7 @@ Result titles are redacted.*
 | `m365.calendar` | My calendar — Today, Tomorrow, Upcoming and custom dates | `Calendars.ReadBasic` |
 | `m365.mail` | My mail — inbox, optional unread-only | `Mail.ReadBasic` |
 | `m365.tasks` | My tasks — To Do, assigned Planner and flagged Outlook work, with personal organization | `Tasks.Read`, `Mail.ReadBasic` for Outlook |
+| `m365.vivaEngageCommunity` | Viva Engage community — details, member count and recently shared files | `Community.Read.All`, `GroupMember.Read.All`, `Files.Read.All` |
 | `custom.myLinks` | My links — configurable HTTPS shortcuts, search and pagination | — |
 | `sp.news` | News — news posts from a site, a hub, or everywhere | — |
 | `sp.search` | Search results — any SharePoint search query | — |
@@ -548,13 +549,31 @@ Result titles are redacted.*
 need no admin consent and no permission request: results are already trimmed to what that person can
 open. See [Search widgets](#search-widgets).
 
-The three Microsoft 365 widgets need tenant admin approval of the `webApiPermissionRequests` in
+The four Microsoft 365 widgets need tenant admin approval of the `webApiPermissionRequests` in
 `config/package-solution.json`, granted in **SharePoint admin center > Advanced > API access** after
 the package is deployed. Until that happens each widget shows a message naming the missing
 permission rather than failing silently. The `.ReadBasic` scopes are deliberate: SPFx grants
 permissions to the tenant-wide SharePoint Online Client Extensibility principal, not to this
 solution alone, so the widgets ask only for the metadata they render — never message or event
 bodies and attachments.
+
+### Viva Engage behavior
+
+Microsoft Graph exposes Viva Engage **communities only** — there is no Graph API for posts,
+discussions, praise, polls, replies or reactions — so the Viva Engage community tile shows the
+community itself rather than its feed. To show the feed (including polls and praise), add Microsoft's
+**Viva Engage Conversations** web part to the same page and point it at the same community:
+
+- **Settings** list the communities the signed-in user can see (`/employeeExperience/communities`)
+  in a picker; the choice is stored per tile.
+- The tile shows the community name (linking to `engage.cloud.microsoft/main/groups/{id}`), privacy,
+  member count of the backing Microsoft 365 group and the most recently modified files from the
+  group library's `Apps/Viva Engage` folder (falling back to the legacy `Apps/Yammer` folder).
+- `Community.Read.All` is required. Without `GroupMember.Read.All` the member count is omitted;
+  without `Files.Read.All` the tile says files could not be loaded. Both degrade without failing.
+- Graph access to Viva Engage requires the network to be in **native mode**.
+  `Community.Read.All`, `GroupMember.Read.All` and `Files.Read.All` are broad, tenant-wide
+  scopes granted to the shared SPFx principal: review them before approving.
 
 ### Tasks behavior
 
