@@ -125,8 +125,7 @@
   .table th:nth-child(3) { width: auto; }
   .table td { min-width: 0; border-bottom: 0; }
   .table tbody tr { @include visual.themed-border('[theme:neutralTertiary, default:#a19f9d]', bottom); }
-  .table .tags { width: auto; grid-column: 2 / -1; padding-top: 0; }
-  .table th.tags,
+  .table .tags,
   .table .due { display: none; }
   .mobileDue { display: block; margin-inline-start: 32px; }
   .table .dropBefore { box-shadow: inset 0 2px '[theme:themePrimary, default:#ff6200]'; }

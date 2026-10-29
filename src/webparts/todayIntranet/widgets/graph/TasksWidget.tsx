@@ -4,7 +4,7 @@ import { IWidgetContext, IWidgetLink } from '../IWidget';
 import { useGraphData, IGraphDataResult } from './useGraphData';
 import {
   NumberSetting, SettingsSurface, ToggleSetting, WidgetItemsView, booleanSetting, numberSetting,
-  paginationSize, useWidgetPagination, WidgetPagination
+  paginationSize, useWidgetPagination, WidgetNotice, WidgetPagination
 } from '../content';
 import { calendarDateKey } from './calendarData';
 import {
@@ -213,7 +213,7 @@ export const TasksWidget: React.FunctionComponent<{ context: IWidgetContext }> =
         </div> : current.status === 'loading' || current.isRefreshing
           ? <p key={source} className={styles.status} role="status">Loading {TASK_SOURCE_LABELS[source]}...</p> : null;
       })}
-      <div className={styles.scroll} role="region" aria-label="Open tasks table">
+      <div className={styles.scroll} role="region" aria-label="Open tasks table" hidden={!visible.length && !incomplete}>
         <table ref={table} className={styles.table}>
           <thead><tr><th scope="col" className={styles.number}><span className={styles.srOnly}>Order</span></th><th scope="col">Task name</th>
             <th scope="col">Quick look</th><th scope="col" className={styles.due}>Due date</th>
@@ -288,9 +288,10 @@ export const TasksWidget: React.FunctionComponent<{ context: IWidgetContext }> =
           </tbody>
         </table>
       </div>
-      {!visible.length && <p role="status" className={styles.status}>{incomplete
-        ? 'No tasks to show yet. Some sources are still loading or unavailable.'
-        : dueOnly ? 'No open tasks with a due date in these sources.' : 'No open tasks in these sources.'}</p>}
+      {!visible.length && (incomplete
+        ? <p role="status" className={styles.status}>No tasks to show yet. Some sources are still loading or unavailable.</p>
+        : <WidgetNotice title="No tasks found"
+          description={dueOnly ? "Looks like you don't have any open tasks with a due date." : "Looks like you don't have any tasks."} />)}
       <WidgetPagination page={pagination.page} totalPages={pagination.totalPages}
         onPageChange={(page) => { cancelDrag(); pagination.setPage(page); }} ariaLabel="Tasks" />
       {!pageSize && visible.length < ordered.length && <p className={styles.status}>

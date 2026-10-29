@@ -484,7 +484,8 @@ accent bars, and badge backgrounds are separate: for example, a warning can reta
 without using low-contrast yellow for small text. Ordinary titles stay neutral; existing unread and
 status emphasis remains meaningful through tone and badges rather than a different title weight.
 Calendar, My links, Tasks, mail, news, search and community item titles use the shared `item-title`
-mixin; narrow layouts wrap titles instead of reducing their font size. Collection Adaptive Cards
+mixin; narrow layouts wrap titles instead of reducing their font size, except the Link tiles view's
+approved single-line title and description treatment. Collection Adaptive Cards
 use the same 16px/24px bold title and 14px/20px metadata. Authored cards retain their explicit size
 choices within the host's reference scale; clock values and other non-item displays keep their own roles.
 
@@ -611,8 +612,9 @@ community itself rather than its feed. To show the feed (including polls and pra
 My tasks uses a compact, theme-aware table inspired by a priority task list: source filter buttons,
 task name, accurately labelled source links, due dates, and personal tags. The shared typography,
 spacing, rounded white content surface and focus treatment match the other widgets; the header
-divider uses the site's primary accent (orange fallback). Narrow tiles place editable tags and
-due dates below the title rather than hiding their controls.
+divider uses the site's primary accent (orange fallback). Small tiles (task content width at or
+below 540px) hide the entire Tags column, including saved values and add/edit/remove controls,
+and place due dates below the title. Tags remain saved and reappear with their controls on wider tiles.
 There are no task-completion checkboxes: **every Microsoft Graph operation is a read**.
 
 - Existing tiles start with **To Do only**, now reading all applicable lists rather than just the
@@ -745,9 +747,14 @@ are fabricated when the required destination or action is unavailable.
 My links follows the supplied viewing and authoring designs. A new instance starts empty with a
 **No links added** information box, explanatory text and **Add link** action; no sample destinations
 are inserted. The action enters dashboard edit mode and opens the add form in the standard widget settings flyout.
-Existing saved destinations remain unchanged. The default view shows compact shortcut cards in
-three columns (two or one on narrower widgets), with optional VPN tags, descriptions and chevrons,
-a separate search surface and pagination.
+Existing saved destinations remain unchanged. The default view shows 112px-high flex shortcut cards
+with 16px gaps and 16px top/bottom/left, 24px right padding. Cards wrap automatically from a 280px
+minimum and stretch equally to fill each row within a 1164px-wide maximum card layout. Below 280px
+of available space, cards shrink to the container to avoid horizontal overflow. Optional VPN tags,
+descriptions and chevrons remain, with a separate search surface and pagination.
+Titles and descriptions each truncate visually after one line, based on available space rather
+than a character limit; full text remains in the accessible content and hover titles. This is a
+scoped exception to the usual no-clipping rule; other collection views retain wrapping text.
 
 In **Edit dashboard**, use the widget's resize handle to change its width and height, or focus its
 title bar and use **Shift+arrow keys**. My links starts at 12 columns by 9 rows and can shrink to

@@ -265,27 +265,50 @@
 }
 
 .linksGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  max-width: 1164px;
   gap: visual.$space-lg;
+
+  > li {
+    display: flex;
+    flex: 1 0 280px;
+    min-width: 0;
+    max-width: 100%;
+  }
 }
 
 .linkCard {
   border: 0;
-  display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) 16px;
+  display: flex;
+  flex: 1 0 0;
   align-items: center;
-  gap: visual.$space-md;
+  gap: visual.$space-lg;
   width: 100%;
-  min-height: 80px;
+  min-width: min(280px, 100%);
+  height: 112px;
+  min-height: 112px;
   box-sizing: border-box;
-  padding: visual.$space-md;
+  padding: visual.$space-lg 24px visual.$space-lg visual.$space-lg;
   border-radius: visual.$radius-xl;
   font: inherit;
   text-align: start;
   text-decoration: none;
   color: '[theme:neutralPrimary, default:#323130]';
   background: '[theme:white, default:#ffffff]';
+}
+
+.linkContent {
+  flex: 1 1 0;
+}
+
+.linkTitle,
+.linkDescription {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  align-self: stretch;
+  overflow: hidden;
 }
 
 a.linkCard:hover,
@@ -296,6 +319,7 @@ button.linkCard:hover {
 
 .linkIcon {
   display: flex;
+  flex: 0 0 40px;
   align-items: center;
   justify-content: center;
   width: 40px;
@@ -322,7 +346,7 @@ button.linkCard:hover {
 }
 
 .chevron {
-  justify-self: end;
+  flex: 0 0 16px;
 }
 
 .pagination {
@@ -387,12 +411,6 @@ button.linkCard:hover {
   border: 0;
 }
 
-@container (max-width: 640px) {
-  .linksGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 @container (max-width: 720px) {
   .toolbar {
     grid-template-columns: minmax(0, 1fr) auto;
@@ -448,12 +466,6 @@ button.linkCard:hover {
   }
 }
 
-@container (max-width: 420px) {
-  .linksGrid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
 @container (max-width: 280px) {
   .event {
     grid-template-columns: minmax(0, 1fr);
@@ -464,17 +476,6 @@ button.linkCard:hover {
     grid-column: 1;
   }
 
-  .linkCard {
-    grid-template-columns: 40px minmax(0, 1fr) 16px;
-    gap: visual.$space-sm;
-    padding: visual.$space-md;
-  }
-
-  .linkIcon {
-    width: 40px;
-    height: 40px;
-    font-size: 24px;
-  }
 }
 
 @media (forced-colors: active) {

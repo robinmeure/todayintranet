@@ -160,6 +160,20 @@ describe('My links interactions and widget contract', () => {
       expect(link.target).toBe('_blank');
       expect(link.rel).toContain('noreferrer');
     });
+
+  });
+
+  it('retains full long titles and descriptions in link tiles and their hover text', () => {
+    const title = 'A long link title that exceeds the space available on a narrow shortcut card';
+    const description = 'A long description that is visually clamped without shortening the stored or accessible text';
+    context.settings = { links: JSON.stringify([{ title, description, url: 'https://example.test/long' }]) };
+    render();
+    const link = container.querySelector('a');
+    expect(link?.textContent).toContain(title);
+    expect(link?.textContent).toContain(description);
+    const hoverText = Array.from(link?.querySelectorAll('[title]') ?? []).map((element) => element.getAttribute('title'));
+    expect(hoverText).toEqual([title, description]);
+    expect(updateSettings).not.toHaveBeenCalled();
   });
 
   it.each(ALL_ITEM_VIEWS.filter((view) => view !== 'adaptive'))('opens links in a new tab in the %s view', (view) => {
