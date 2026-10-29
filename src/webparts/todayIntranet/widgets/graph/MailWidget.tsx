@@ -11,8 +11,8 @@ import {
   WidgetItemsView,
   WidgetView,
   booleanSetting,
+  collectionPaging,
   numberSetting,
-  paginationSize,
   viewSetting
 } from '../content';
 
@@ -58,6 +58,7 @@ export const MailWidget: React.FunctionComponent<{ context: IWidgetContext }> = 
   const maxItems = numberSetting(context, 'maxItems', DEFAULT_MAX_ITEMS, MAX_ITEMS_BOUNDS);
   const unreadOnly = booleanSetting(context, 'unreadOnly', false);
   const view = viewSetting(context, MAIL_DEFAULT_VIEW);
+  const paging = collectionPaging(context, maxItems);
   const locale = context.spContext.pageContext.cultureInfo.currentUICultureName || undefined;
 
   const state = useGraphData<Message[]>(
@@ -69,7 +70,7 @@ export const MailWidget: React.FunctionComponent<{ context: IWidgetContext }> = 
         .version('v1.0')
         .select('subject,from,receivedDateTime,isRead,webLink')
         .orderby('receivedDateTime desc')
-        .top(maxItems);
+        .top(paging.fetchLimit);
 
       if (unreadOnly) {
         request = request.filter('isRead eq false');
@@ -78,7 +79,7 @@ export const MailWidget: React.FunctionComponent<{ context: IWidgetContext }> = 
       const response = await request.get();
       return (response.value ?? []) as Message[];
     },
-    [maxItems, unreadOnly]
+    [paging.fetchLimit, unreadOnly]
   );
 
   return (
@@ -92,7 +93,7 @@ export const MailWidget: React.FunctionComponent<{ context: IWidgetContext }> = 
     >
       {(messages) => (
         <WidgetItems
-          pageSize={paginationSize(context)}
+          pageSize={paging.pageSize}
           view={view}
           ariaLabel={unreadOnly ? 'Unread messages' : 'Recent messages'}
           items={messages.map((message, index) => toItem(message, index, locale))}
@@ -107,10 +108,11 @@ export const MailWidgetSettings: React.FunctionComponent<{ context: IWidgetConte
     <NumberSetting
       context={context}
       settingKey="maxItems"
-      label="Messages to show"
+      label={booleanSetting(context, 'paginationEnabled', true) ? 'Messages per page' : 'Messages to show'}
       fallback={DEFAULT_MAX_ITEMS}
       {...MAX_ITEMS_BOUNDS}
     />
+    <ToggleSetting context={context} settingKey="paginationEnabled" label="Use pagination" fallback={true} />
     <ToggleSetting context={context} settingKey="unreadOnly" label="Unread only" fallback={false} />
   </SettingsSurface>
 );

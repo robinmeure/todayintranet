@@ -35,7 +35,7 @@ const GRAPH_TTL_BY_SCOPE: Record<string, number> = {
   'Community.Read.All': 15 * 60 * 1000
 };
 
-function toGraphError(error: unknown, scope: string): IWidgetError {
+export function toGraphError(error: unknown, scope: string): IWidgetError {
   const shape = (error ?? {}) as IGraphErrorShape;
   const status = widgetDataErrorStatus(error);
   const codes = widgetDataErrorCodes(error);

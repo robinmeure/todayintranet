@@ -1,21 +1,22 @@
 import * as React from 'react';
 import { Icon } from '@fluentui/react/lib/Icon';
 import { IWidgetContext, IWidgetLink } from '../IWidget';
-import { useGraphData, IGraphDataResult } from './useGraphData';
+import { useGraphData, IGraphDataResult, toGraphError } from './useGraphData';
 import {
   NumberSetting, SettingsSurface, ToggleSetting, WidgetItemsView, booleanSetting, numberSetting,
-  paginationSize, useWidgetPagination, WidgetNotice, WidgetPagination
+  collectionPaging, useWidgetPagination, WidgetNotice, WidgetPagination
 } from '../content';
 import { calendarDateKey } from './calendarData';
 import {
   advanceTaskHistory, AggregatedTask, emptyTaskHistory, formatTaskDue, ITaskHistory, loadTaskSource, TASK_SOURCE_LABELS,
-  TASK_SOURCES, TaskSource, TaskSourceData, taskDueDay, taskSources, TODO_URL
+  TASK_SOURCES, TaskSource, TaskSourceData, taskDueDay, taskSources, TODO_URL, reconcileTaskSource
 } from './taskData';
 import {
   defaultTaskMetadata, emptyTaskDocument, normalizeTaskTags, reorderTask, sortTasks, TASK_PRIORITIES, TaskMetadata
 } from './taskOrganization';
 import { useTaskOrganization } from './useTaskOrganization';
 import { widgetDataCacheKey } from '../data/WidgetDataCache';
+import { isWidgetDataAuthorizationError } from '../data/WidgetDataError';
 import { downloadJson } from '../../common/downloadJson';
 import styles from './TasksWidget.module.scss';
 
@@ -25,9 +26,56 @@ export const TODO_LINK: IWidgetLink = { text: 'Open To Do', href: TODO_URL };
 export const TASKS_DEFAULT_VIEW: WidgetItemsView = 'compact';
 export const TASKS_VIEWS: WidgetItemsView[] = ['compact', 'list'];
 
-function useTaskSource(context: IWidgetContext, source: TaskSource, enabled: boolean): IGraphDataResult<TaskSourceData> {
-  return useGraphData(context, source === 'outlook' ? 'Mail.ReadBasic' : 'Tasks.Read',
-    (client) => loadTaskSource(client, source), ['task-source-v1', source], enabled);
+interface TaskSourceResult extends IGraphDataResult<TaskSourceData> {
+  loadMore(previous?: TaskSourceData): Promise<TaskSourceData | undefined>;
+}
+
+function useTaskSource(context: IWidgetContext, source: TaskSource, enabled: boolean): TaskSourceResult {
+  const initial = useGraphData(context, source === 'outlook' ? 'Mail.ReadBasic' : 'Tasks.Read',
+    (client) => loadTaskSource(client, source), ['task-source-v2', source], enabled);
+  const [extra, setExtra] = React.useState<{
+    initial?: TaskSourceData; data?: TaskSourceData; loading?: boolean; error?: unknown;
+  }>({});
+  const current = React.useRef(initial);
+  current.current = initial;
+  const active = React.useRef(false);
+  const mounted = React.useRef(true);
+  React.useEffect(() => () => { mounted.current = false; }, []);
+  const data = extra.initial === initial.data ? extra.data ?? initial.data : initial.data;
+  const loading = extra.initial === initial.data && extra.loading;
+  const failure = extra.initial === initial.data ? extra.error : undefined;
+  const denied = isWidgetDataAuthorizationError(failure);
+  return {
+    ...initial, data: denied ? undefined : data,
+    status: denied ? 'error' : initial.status,
+    error: denied ? toGraphError(failure, source === 'outlook' ? 'Mail.ReadBasic' : 'Tasks.Read') : initial.error,
+    isRefreshing: initial.isRefreshing || loading,
+    refreshError: failure ? toGraphError(failure, source === 'outlook' ? 'Mail.ReadBasic' : 'Tasks.Read') : initial.refreshError,
+    loadMore: async (previous = data) => {
+      if (!previous?.continuation || active.current || initial.isRefreshing) { return undefined; }
+      const original = initial.data;
+      active.current = true;
+      setExtra({ initial: original, data: previous, loading: true });
+      try {
+        const client = await context.spContext.msGraphClientFactory.getClient('3');
+        const batch = await loadTaskSource(client, source, previous.continuation);
+        const merged = { ...batch, tasks: reconcileTaskSource(previous.tasks, { ...batch, complete: false }) };
+        if (!mounted.current || current.current.data !== original || current.current.status !== 'ready' ||
+            current.current.isRefreshing) { return undefined; }
+        setExtra({ initial: original, data: merged });
+        return merged;
+      } catch (error) {
+        if (mounted.current && current.current.data === original) {
+          setExtra({ initial: original, data: previous, error });
+        }
+        return undefined;
+      } finally {
+        // The lock rejects every concurrent caller until this request finishes.
+        // eslint-disable-next-line require-atomic-updates
+        active.current = false;
+      }
+    }
+  };
 }
 
 const InlineTags: React.FunctionComponent<{
@@ -112,11 +160,14 @@ export const TasksWidget: React.FunctionComponent<{ context: IWidgetContext }> =
   const todo = useTaskSource(context, 'todo', sources.indexOf('todo') >= 0);
   const planner = useTaskSource(context, 'planner', sources.indexOf('planner') >= 0);
   const outlook = useTaskSource(context, 'outlook', sources.indexOf('outlook') >= 0);
-  const states: Record<TaskSource, IGraphDataResult<TaskSourceData>> = { todo, planner, outlook };
+  const states: Record<TaskSource, TaskSourceResult> = { todo, planner, outlook };
   const organization = useTaskOrganization(context);
   const { state, store } = organization;
   const [error, setError] = React.useState<string>();
   const [announcement, setAnnouncement] = React.useState('');
+  const [loadingPage, setLoadingPage] = React.useState(false);
+  const navigation = React.useRef(0);
+  React.useEffect(() => () => { navigation.current++; }, []);
   const [dragging, setDragging] = React.useState<string>();
   const [drop, setDrop] = React.useState<{ key: string; after: boolean }>();
   const drag = React.useRef<{ key: string; x: number; y: number; active: boolean }>();
@@ -128,8 +179,11 @@ export const TasksWidget: React.FunctionComponent<{ context: IWidgetContext }> =
   }, []);
   const scope = widgetDataCacheKey(context, 'task-history', []);
   React.useEffect(() => {
+    navigation.current++;
+    setLoadingPage(false);
     drag.current = undefined; setDragging(undefined); setDrop(undefined); setError(undefined); setAnnouncement('');
-  }, [scope, configured, dueOnly, maxItems, state.canEdit]);
+  }, [scope, configured, dueOnly, maxItems, state.canEdit, context.refreshToken, sources, context.settings.itemsPerPage,
+    context.settings.paginationEnabled]);
   // Responses are folded into history as state, using React's "adjust state during
   // render" pattern: the transition is pure, and returns the same object once applied.
   const [storedHistory, setHistory] = React.useState<ITaskHistory>(() => emptyTaskHistory(scope));
@@ -145,9 +199,10 @@ export const TasksWidget: React.FunctionComponent<{ context: IWidgetContext }> =
     if (received[source]) { tasks.push(...history.tasks[source]); }
   });
   const ordered = sortTasks(tasks.filter((task) => !dueOnly || task.due), state.document);
-  const pageSize = paginationSize(context);
+  const pageSize = collectionPaging(context, maxItems).pageSize;
+  const hasMore = sources.some((source) => !!states[source].data?.continuation);
   const pagination = useWidgetPagination(pageSize ? ordered : ordered.slice(0, maxItems), pageSize,
-    `${scope}:${sources.join(',')}:${dueOnly}`);
+    `${scope}:${sources.join(',')}:${dueOnly}`, hasMore ? 5 : 0);
   const visible = pagination.items;
   const incomplete = sources.some((source) => states[source].status !== 'ready' ||
     !states[source].data?.complete || states[source].refreshError || states[source].isRefreshing);
@@ -293,7 +348,34 @@ export const TasksWidget: React.FunctionComponent<{ context: IWidgetContext }> =
         : <WidgetNotice title="No tasks found"
           description={dueOnly ? "Looks like you don't have any open tasks with a due date." : "Looks like you don't have any tasks."} />)}
       <WidgetPagination page={pagination.page} totalPages={pagination.totalPages}
-        onPageChange={(page) => { cancelDrag(); pagination.setPage(page); }} ariaLabel="Tasks" />
+        disabled={loadingPage}
+        onPageChange={async (page) => {
+          cancelDrag();
+          if (!pageSize || (page - 1) * pageSize < ordered.length || !hasMore) {
+            pagination.setPage(page);
+            return;
+          }
+          const visit = navigation.current;
+          setLoadingPage(true);
+          const loadPage = async (batches: (TaskSourceData | undefined)[]): Promise<boolean> => {
+            const count = batches.reduce((total, batch) =>
+              total + (batch?.tasks.filter((task) => !dueOnly || task.due).length ?? 0), 0);
+            if (count > (page - 1) * pageSize || !batches.some((batch) => batch?.continuation)) { return true; }
+            const next = await Promise.all(sources.map((source, index) =>
+              batches[index]?.continuation ? states[source].loadMore(batches[index]) : Promise.resolve(batches[index])));
+            if (visit !== navigation.current) { return false; }
+            if (next.some((batch, index) => batches[index]?.continuation && (!batch || batch.warning))) {
+              return false;
+            }
+            return loadPage(next);
+          };
+          const loaded = await loadPage(sources.map((source) => states[source].data));
+          if (visit === navigation.current) {
+            setLoadingPage(false);
+            if (loaded) { pagination.setPage(page); }
+          }
+        }} ariaLabel="Tasks" />
+      {loadingPage && <p role="status" className={styles.status}>Loading more tasks...</p>}
       {!pageSize && visible.length < ordered.length && <p className={styles.status}>
         Showing {visible.length} of {ordered.length} loaded tasks. Adjust the item limit or enable pagination in tile settings.
       </p>}
@@ -335,7 +417,10 @@ export const TasksWidget: React.FunctionComponent<{ context: IWidgetContext }> =
 export const TasksWidgetSettings: React.FunctionComponent<{ context: IWidgetContext }> = ({ context }) => {
   const selected = taskSources(context.settings.sources);
   return <SettingsSurface description="Only this tile changes. Task organization saves separately, without Done.">
-    <NumberSetting context={context} settingKey="maxItems" label="Tasks to show" fallback={DEFAULT_MAX_ITEMS} {...MAX_ITEMS_BOUNDS} />
+    <NumberSetting context={context} settingKey="maxItems"
+      label={booleanSetting(context, 'paginationEnabled', true) ? 'Tasks per page' : 'Tasks to show'}
+      fallback={DEFAULT_MAX_ITEMS} {...MAX_ITEMS_BOUNDS} />
+    <ToggleSetting context={context} settingKey="paginationEnabled" label="Use pagination" fallback={true} />
     <ToggleSetting context={context} settingKey="dueOnly" label="Only tasks with a due date" fallback={false} />
     <fieldset className={styles.settings}><legend>Starting sources</legend>
       {TASK_SOURCES.map((source) => <label key={source}>

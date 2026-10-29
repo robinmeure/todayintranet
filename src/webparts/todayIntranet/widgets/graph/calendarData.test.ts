@@ -139,6 +139,18 @@ describe('calendar Graph paging', () => {
     expect(query).toHaveBeenCalledTimes(1);
   });
 
+  it('stops following nextLink once enough relevant meetings are collected', async () => {
+    const now = new Date('2026-09-21T10:00:00Z');
+    const ended = { id: 'ended', end: { dateTime: '2026-09-21T09:00:00', timeZone: 'UTC' } };
+    const upcoming = (id: string): Event => ({ id, end: { dateTime: '2026-09-21T12:00:00', timeZone: 'UTC' } });
+    get.mockResolvedValueOnce({ value: [ended, upcoming('a')], '@odata.nextLink': 'page-2' })
+      .mockResolvedValueOnce({ value: [upcoming('b'), upcoming('c')], '@odata.nextLink': 'page-3' })
+      .mockResolvedValueOnce({ value: [upcoming('d')] });
+    const events = await loadCalendarEvents(client, '2026-09-21T00:00:00Z', '2026-09-28T00:00:00Z', 3, now);
+    expect(events.map((item) => item.id)).toEqual(['ended', 'a', 'b', 'c']);
+    expect(get).toHaveBeenCalledTimes(2);
+  });
+
   it('fails explicitly rather than looping on a repeated page', async () => {
     get.mockResolvedValue({ value: [], '@odata.nextLink': 'repeat' });
     await expect(loadCalendarEvents(client, 'start', 'end')).rejects.toThrow('repeated calendar page');

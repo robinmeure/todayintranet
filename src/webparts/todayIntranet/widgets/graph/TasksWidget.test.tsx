@@ -81,6 +81,16 @@ describe('task table and organization interactions', () => {
     await act(async () => { Simulate.click(button(label)); });
   };
   const titles = (): string[] => Array.from(container.querySelectorAll('td:nth-child(2) span[title]')).map((element) => element.getAttribute('title') ?? '');
+  const pageNumbers = (): number[] => Array.from(container.querySelectorAll('nav button[aria-label^="Tasks page "]'))
+    .map((element) => Number(element.textContent));
+  const currentPage = (): number => Number(container.querySelector('[aria-current="page"]')?.textContent);
+  const goTo = async (page: number): Promise<void> => {
+    for (let step = 0; step < 30 && currentPage() !== page; step++) {
+      await click(pageNumbers().indexOf(page) >= 0 ? `Tasks page ${page}`
+        : currentPage() < page ? 'Next tasks page' : 'Previous tasks page');
+    }
+    expect(currentPage()).toBe(page);
+  };
 
   it('defaults old tiles to all To Do lists only and renders a read-only compact table', async () => {
     await render();
@@ -163,6 +173,100 @@ describe('task table and organization interactions', () => {
     expect(context.updateSettings).not.toHaveBeenCalled();
     await click('All');
     expect(titles()).toContain('Flagged email');
+  });
+  const pagedTasks = (start: number, count: number): { id: string; title: string; status: string }[] =>
+    Array.from({ length: count }, (_, index) => ({
+      id: `00${start + index}`.slice(-3), title: `Task ${`00${start + index}`.slice(-3)}`, status: 'notStarted'
+    }));
+  const mockTaskPages = (): void => {
+    get.mockImplementation(async (path) => {
+      if (path === '/me/todo/lists') { return { value: [{ id: 'list' }] }; }
+      if (path === '/me/todo/lists/list/tasks') { return { value: pagedTasks(0, 50), '@odata.nextLink': '/tasks-50' }; }
+      if (path === '/tasks-50') { return { value: pagedTasks(50, 50), '@odata.nextLink': '/tasks-100' }; }
+      if (path === '/tasks-100') { return { value: pagedTasks(100, 3) }; }
+      throw new Error(`Unexpected request: ${path}`);
+    });
+  };
+  it('shows four page numbers, advertises five extra pages and only loads a batch for an unloaded page', async () => {
+    context.settings = { maxItems: 10 };
+    mockTaskPages();
+    await render();
+    expect(get).toHaveBeenCalledTimes(2);
+    expect(container.textContent).toContain('Page 1 of 10');
+    expect(pageNumbers()).toEqual([1, 2, 3, 4]);
+    await goTo(5);
+    expect(titles()).toEqual(pagedTasks(40, 10).map((task) => task.title));
+    expect(pageNumbers()).toEqual([4, 5, 6, 7]);
+    expect(get).toHaveBeenCalledTimes(2);
+    await click('Tasks page 6');
+    expect(titles()).toEqual(pagedTasks(50, 10).map((task) => task.title));
+    expect(get).toHaveBeenCalledTimes(3);
+    expect(container.textContent).toContain('Page 6 of 15');
+    await goTo(11);
+    expect(titles()).toEqual(pagedTasks(100, 3).map((task) => task.title));
+    expect(container.textContent).toContain('Page 11 of 11');
+    expect(pageNumbers()).toEqual([8, 9, 10, 11]);
+    expect(button('Next tasks page').disabled).toBe(true);
+    await goTo(5);
+    expect(get).toHaveBeenCalledTimes(4);
+  });
+  it('loads no continuation when pagination is off', async () => {
+    context.settings = { maxItems: 10, paginationEnabled: false };
+    mockTaskPages();
+    await render();
+    expect(titles()).toHaveLength(10);
+    expect(container.querySelector('nav')).toBeNull();
+    expect(get).toHaveBeenCalledTimes(2);
+  });
+  it('loads multiple batches for a saved large page size without repeating a continuation', async () => {
+    context.settings = { maxItems: 10, paginationEnabled: true, itemsPerPage: 100 };
+    mockTaskPages();
+    await render();
+    expect(titles()).toHaveLength(50);
+    expect(get).toHaveBeenCalledTimes(2);
+    await click('Tasks page 2');
+    expect(titles()).toEqual(pagedTasks(100, 3).map((task) => task.title));
+    expect(get.mock.calls.map(([path]) => path)).toEqual([
+      '/me/todo/lists', '/me/todo/lists/list/tasks', '/tasks-50', '/tasks-100'
+    ]);
+  });
+  it('starts again at the first batch after refresh instead of following an old cursor', async () => {
+    context.settings = { maxItems: 10 };
+    mockTaskPages();
+    await render();
+    await goTo(5);
+    await click('Tasks page 6');
+    context.refreshToken++;
+    await render();
+    expect(get.mock.calls.map(([path]) => path)).toEqual([
+      '/me/todo/lists', '/me/todo/lists/list/tasks', '/tasks-50', '/me/todo/lists', '/me/todo/lists/list/tasks'
+    ]);
+  });
+  it('clamps a provisional page when the final response contains fewer tasks', async () => {
+    context.settings = { maxItems: 10 };
+    mockTaskPages();
+    get.mockImplementation(async (path) => path === '/me/todo/lists' ? { value: [{ id: 'list' }] }
+      : path === '/tasks-50' ? { value: [] }
+        : { value: pagedTasks(0, 50), '@odata.nextLink': '/tasks-50' });
+    await render();
+    await goTo(5);
+    await click('Tasks page 7');
+    expect(container.textContent).toContain('Page 5 of 5');
+    expect(titles()).toEqual(pagedTasks(40, 10).map((task) => task.title));
+  });
+  it('keeps loaded tasks and the current page visible after a continuation failure and allows retry', async () => {
+    context.settings = { maxItems: 10 };
+    mockTaskPages();
+    await render();
+    await goTo(5);
+    get.mockRejectedValueOnce(new Error('Throttled'));
+    await click('Tasks page 6');
+    expect(container.textContent).toContain('Throttled');
+    expect(container.textContent).toContain('Page 5 of 10');
+    expect(titles()).toHaveLength(10);
+    await click('Tasks page 6');
+    expect(container.textContent).not.toContain('Throttled');
+    expect(titles()).toEqual(pagedTasks(50, 10).map((task) => task.title));
   });
   it('keeps healthy tasks visible when another source is denied', async () => {
     await render();

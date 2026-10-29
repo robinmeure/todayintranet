@@ -266,7 +266,7 @@ describe('calendar interactions', () => {
     await render();
     expect(container.querySelectorAll('ol > li')).toHaveLength(8);
     expect(container.querySelector('nav')).toBeNull();
-    expect(get).toHaveBeenCalledTimes(1);
+    expect(get).toHaveBeenCalledTimes(2);
   });
 
   it('changes time format without refetching events', async () => {

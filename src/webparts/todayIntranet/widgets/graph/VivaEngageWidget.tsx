@@ -3,16 +3,18 @@ import { Dropdown, IDropdownOption } from '@fluentui/react/lib/Dropdown';
 import { IWidgetContext, IWidgetLink } from '../IWidget';
 import { useGraphData } from './useGraphData';
 import {
+  booleanSetting,
+  collectionPaging,
   IWidgetListItem,
   NumberSetting,
   SettingsSurface,
+  ToggleSetting,
   WidgetErrorMessage,
   WidgetItems,
   WidgetItemsView,
   WidgetNotice,
   WidgetView,
   numberSetting,
-  paginationSize,
   textSetting,
   viewSetting
 } from '../content';
@@ -110,14 +112,15 @@ const CommunityCard: React.FunctionComponent<{
 export const VivaEngageWidget: React.FunctionComponent<{ context: IWidgetContext }> = ({ context }) => {
   const communityId = textSetting(context, COMMUNITY_KEY, '');
   const maxFiles = numberSetting(context, 'maxFiles', DEFAULT_MAX_FILES, MAX_FILES_BOUNDS);
+  const paging = collectionPaging(context, maxFiles);
   const view = viewSetting(context, VIVA_ENGAGE_DEFAULT_VIEW);
   const locale = context.spContext.pageContext.cultureInfo.currentUICultureName || undefined;
 
   const state = useGraphData<IEngageCommunityCard>(
     context,
     SCOPE,
-    (client) => loadCommunityCard(client, communityId, maxFiles),
-    ['card', communityId, maxFiles],
+    (client) => loadCommunityCard(client, communityId, paging.fetchLimit),
+    ['card', communityId, paging.fetchLimit],
     !!communityId
   );
 
@@ -138,7 +141,7 @@ export const VivaEngageWidget: React.FunctionComponent<{ context: IWidgetContext
       loading={{ label: 'Loading community…', rows: 3 }}
       empty={{ iconName: 'Group', text: 'This community could not be found.' }}
     >
-      {(card) => <CommunityCard card={card} view={view} locale={locale} pageSize={paginationSize(context)} />}
+      {(card) => <CommunityCard card={card} view={view} locale={locale} pageSize={paging.pageSize} />}
     </WidgetView>
   );
 };
@@ -183,10 +186,11 @@ export const VivaEngageWidgetSettings: React.FunctionComponent<{ context: IWidge
       <NumberSetting
         context={context}
         settingKey="maxFiles"
-        label="Files to show"
+        label={booleanSetting(context, 'paginationEnabled', true) ? 'Files per page' : 'Files to show'}
         fallback={DEFAULT_MAX_FILES}
         {...MAX_FILES_BOUNDS}
       />
+      <ToggleSetting context={context} settingKey="paginationEnabled" label="Use pagination" fallback={true} />
     </SettingsSurface>
   );
 };

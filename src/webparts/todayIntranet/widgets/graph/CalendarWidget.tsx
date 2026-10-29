@@ -7,7 +7,7 @@ import { IWidgetContext, IWidgetLink } from '../IWidget';
 import { useGraphData } from './useGraphData';
 import {
   NumberSetting, SettingsSurface, ToggleSetting, WidgetDateToolbar, WidgetItems, WidgetItemsView, WidgetView,
-  booleanSetting, numberSetting, viewSetting
+  booleanSetting, numberSetting, viewSetting, PAGE_WINDOW
 } from '../content';
 import {
   CalendarRange, calendarDateKey, calendarItems, calendarTimeFormat, calendarWindow, loadCalendarEvents, parseCalendarDate
@@ -70,11 +70,12 @@ const CalendarSchedule: React.FunctionComponent<ICalendarScheduleProps> = ({
 }) => {
   const refreshWindow = Math.floor(now.getTime() / REFRESH_INTERVAL);
   const previousRefreshWindow = React.useRef(refreshWindow);
+  const limit = booleanSetting(context, 'paginationEnabled', true) ? pageSize * PAGE_WINDOW : undefined;
   const state = useGraphData<ICalendarResult>(
     context,
     'Calendars.ReadBasic',
-    async (client) => ({ start, end, events: await loadCalendarEvents(client, start, end) }),
-    [start, end]
+    async (client) => ({ start, end, events: await loadCalendarEvents(client, start, end, limit) }),
+    [start, end, limit]
   );
   const { reload } = state;
   React.useEffect(() => {

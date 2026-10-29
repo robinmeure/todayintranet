@@ -8,11 +8,13 @@ import {
   WidgetItemsView,
   WidgetView,
   numberSetting,
-  paginationSize,
+  booleanSetting,
+  collectionPaging,
+  ToggleSetting,
   viewSetting
 } from '../content';
 import { useSearchData } from './useSearchData';
-import { ISearchRow, formatSearchDate, plainSummary } from './SearchService';
+import { ISearchRow, SEARCH_ROW_LIMIT, formatSearchDate, plainSummary } from './SearchService';
 import { SearchQuerySetting } from './SearchQuerySetting';
 import { SearchScope, buildQuery, scopeSetting } from './searchQuery';
 
@@ -65,6 +67,7 @@ export const SearchResultsWidget: React.FunctionComponent<{ context: IWidgetCont
   const scope = scopeSetting(context, DEFAULT_SCOPE);
   const maxItems = numberSetting(context, 'maxItems', DEFAULT_MAX_ITEMS, MAX_ITEMS_BOUNDS);
   const view = viewSetting(context, SEARCH_DEFAULT_VIEW);
+  const paging = collectionPaging(context, maxItems, SEARCH_ROW_LIMIT);
   const terms = typeof context.settings.terms === 'string' ? context.settings.terms : '';
   const locale = context.spContext.pageContext.cultureInfo.currentUICultureName || undefined;
 
@@ -74,7 +77,7 @@ export const SearchResultsWidget: React.FunctionComponent<{ context: IWidgetCont
 
   const state = useSearchData(
     context,
-    { queryText, selectProperties: SELECT_PROPERTIES, rowLimit: maxItems }
+    { queryText, selectProperties: SELECT_PROPERTIES, rowLimit: paging.fetchLimit }
   );
 
   return (
@@ -91,7 +94,7 @@ export const SearchResultsWidget: React.FunctionComponent<{ context: IWidgetCont
     >
       {(results) => (
         <WidgetItems
-          pageSize={paginationSize(context)}
+          pageSize={paging.pageSize}
           view={view}
           ariaLabel="Search results"
           items={results.rows.map((row, index) => toItem(row, index, locale))}
@@ -117,9 +120,10 @@ export const SearchResultsWidgetSettings: React.FunctionComponent<{ context: IWi
     <NumberSetting
       context={context}
       settingKey="maxItems"
-      label="Results to show"
+      label={booleanSetting(context, 'paginationEnabled', true) ? 'Results per page' : 'Results to show'}
       fallback={DEFAULT_MAX_ITEMS}
       {...MAX_ITEMS_BOUNDS}
     />
+    <ToggleSetting context={context} settingKey="paginationEnabled" label="Use pagination" fallback={true} />
   </SettingsSurface>
 );

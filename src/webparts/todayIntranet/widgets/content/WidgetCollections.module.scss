@@ -354,11 +354,14 @@ button.linkCard:hover {
   align-items: center;
   flex-wrap: wrap;
   gap: visual.$space-xs;
+  margin-top: visual.$space-lg;
 }
 
-.pageButton {
+// Scoped under .pagination so widget-level `button { color: inherit }` resets cannot mask the active page.
+.pagination .pageButton {
   min-width: 32px;
   height: 32px;
+  padding: 0;
   border: 0;
   border-radius: 50%;
   font: inherit;
@@ -367,25 +370,23 @@ button.linkCard:hover {
   cursor: pointer;
 }
 
-.pageStatus {
-  @include visual.meta;
-  color: '[theme:neutralSecondary, default:#605e5c]';
-  margin-inline-start: visual.$space-sm;
-}
-
-.pageButton:disabled {
+.pagination .pageButton:disabled {
   opacity: 0.5;
   cursor: default;
 }
 
-.pageButton:hover:not(:disabled) {
+.pagination .pageButton:hover:not(:disabled) {
   text-decoration: underline;
 }
 
-.pageButtonActive {
-  font-weight: 600;
+.pagination .pageButtonActive {
+  font-weight: 700;
   color: '[theme:white, default:#ffffff]';
   background: '[theme:neutralPrimary, default:#323130]';
+}
+
+.pagination .pageButtonActive:hover:not(:disabled) {
+  text-decoration: none;
 }
 
 .rangeTab:focus-visible,
@@ -485,7 +486,7 @@ button.linkCard:hover {
   .dateTile,
   .badge,
   .rangeTabActive,
-  .pageButtonActive {
+  .pagination .pageButtonActive {
     border: 1px solid CanvasText;
   }
 }

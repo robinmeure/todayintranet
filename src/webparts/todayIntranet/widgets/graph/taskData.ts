@@ -22,10 +22,28 @@ export interface TaskSourceData {
   tasks: AggregatedTask[];
   complete: boolean;
   warning?: string;
+  continuation?: TaskContinuation;
 }
 
 interface Page<T> { value: T[]; '@odata.nextLink'?: string }
+type TaskRecord = Omit<TodoTask, 'dueDateTime'> & Pick<PlannerTask, 'percentComplete'> &
+  Pick<Message, 'subject' | 'flag' | 'webLink'> & {
+    dueDateTime?: TodoTask['dueDateTime'] | PlannerTask['dueDateTime'];
+  };
 interface Budget { requests: number; records: number }
+interface TaskPageRequest {
+  path: string;
+  listId?: string;
+  initial?: boolean;
+  unfiltered?: boolean;
+}
+export interface TaskContinuation {
+  pending: TaskPageRequest[];
+  buffered: AggregatedTask[];
+  visited: string[];
+  discoveryComplete: boolean;
+}
+export const TASK_BATCH_SIZE: number = 50;
 export const TASK_REQUEST_LIMIT: number = 12;
 export const TASK_RECORD_LIMIT: number = 1000;
 
@@ -106,71 +124,116 @@ async function pages<T>(
   return true;
 }
 
-export async function loadTaskSource(client: MSGraphClientV3, source: TaskSource): Promise<TaskSourceData> {
+export async function loadTaskSource(
+  client: MSGraphClientV3, source: TaskSource, continuation?: TaskContinuation
+): Promise<TaskSourceData> {
   const tasks: AggregatedTask[] = [];
   const budget: Budget = { requests: 0, records: 0 };
-  let complete = true;
+  const pending = continuation ? [...continuation.pending] : [];
+  const buffered = continuation ? [...continuation.buffered] : [];
+  const visited = new Set(continuation?.visited);
+  let discoveryComplete = continuation?.discoveryComplete ?? true;
+  let complete = discoveryComplete;
   let warning: string | undefined;
   try {
-    if (source === 'todo') {
+    if (!continuation && source === 'todo') {
       const lists: TodoTaskList[] = [];
       complete = await pages<TodoTaskList>(client, '/me/todo/lists', undefined, budget, (items) => lists.push(...items));
+      discoveryComplete = complete;
       for (const list of lists) {
         if (list.wellknownListName === 'flaggedEmails') { continue; }
         const listId = id(list.id);
-        const done = await pages<TodoTask>(client, `/me/todo/lists/${listId}/tasks`, undefined, budget, (items) => {
-          items.forEach((task) => {
-            if (task.status !== 'completed') {
-              tasks.push({ key: `todo:${listId}:${id(task.id)}`, source, title: task.title || '(Untitled task)',
-                due: due(task.dueDateTime), sourceUrl: TODO_URL, linkLabel: 'To Do app' });
-            }
-          });
-        });
-        complete = complete && done;
-        if (budget.requests >= TASK_REQUEST_LIMIT || budget.records >= TASK_RECORD_LIMIT) {
-          if (list !== lists[lists.length - 1]) { complete = false; }
-          break;
-        }
+        pending.push({ path: `/me/todo/lists/${listId}/tasks`, listId, initial: true });
       }
-    } else if (source === 'planner') {
-      complete = await pages<PlannerTask>(client, '/me/planner/tasks', 'id,title,percentComplete,dueDateTime', budget, (items) => {
-        items.forEach((task) => {
+    } else if (!continuation) {
+      pending.push({ path: source === 'planner' ? '/me/planner/tasks' : '/me/messages', initial: true });
+    }
+    tasks.push(...buffered.splice(0, TASK_BATCH_SIZE));
+    let taskRecords = tasks.length;
+    while (pending.length && taskRecords < TASK_BATCH_SIZE && budget.requests < TASK_REQUEST_LIMIT) {
+      const current = pending[0];
+      if (visited.has(current.path)) { throw new Error('Microsoft 365 returned a repeated task page.'); }
+      let request = client.api(current.path).version('v1.0');
+      if (source === 'outlook') {
+        request = request.header('Prefer', 'IdType="ImmutableId"');
+        if (current.initial) {
+          request = request.select('id,subject,flag,webLink').top(TASK_BATCH_SIZE);
+          if (!current.unfiltered) { request = request.filter("flag/flagStatus eq 'flagged'"); }
+        }
+      } else if (source === 'planner' && current.initial) {
+        request = request.select('id,title,percentComplete,dueDateTime');
+      }
+      budget.requests++;
+      let response: Page<TaskRecord>;
+      try {
+        response = await request.get();
+      } catch (error) {
+        if (source === 'outlook' && current.initial && !current.unfiltered &&
+            widgetDataErrorStatus(error) === 400 && !tasks.length) {
+          pending[0] = { ...current, unfiltered: true };
+          continue;
+        }
+        throw error;
+      }
+      if (!response || !Array.isArray(response.value) ||
+          (response['@odata.nextLink'] !== undefined && typeof response['@odata.nextLink'] !== 'string')) {
+        throw new Error('Microsoft 365 returned an invalid task page.');
+      }
+      const mapped: AggregatedTask[] = [];
+      response.value.forEach((task) => {
+        if (source === 'todo') {
+          if (task.status !== 'completed') {
+            if (typeof task.dueDateTime === 'string') {
+              throw new Error('Microsoft 365 returned an invalid task due date.');
+            }
+            mapped.push({ key: `todo:${current.listId}:${id(task.id)}`, source, title: task.title || '(Untitled task)',
+              due: due(task.dueDateTime), sourceUrl: TODO_URL, linkLabel: 'To Do app' });
+          }
+        } else if (source === 'planner') {
           if (typeof task.percentComplete !== 'number') { throw new Error('Planner returned a task without completion status.'); }
           if (task.percentComplete < 100) {
+            if (task.dueDateTime && typeof task.dueDateTime !== 'string') {
+              throw new Error('Planner returned an invalid due timestamp.');
+            }
             const item: AggregatedTask = { key: `planner:${id(task.id)}`, source, title: task.title || '(Untitled task)',
               due: task.dueDateTime ? due({ dateTime: task.dueDateTime, timeZone: 'UTC' }) : undefined,
               sourceUrl: PLANNER_URL, linkLabel: 'Planner app' };
             taskDueDay(item);
-            tasks.push(item);
+            mapped.push(item);
           }
-        });
-      });
-    } else {
-      const receive = (items: Message[]): void => {
-        items.forEach((message) => {
+        } else {
+          const message = task;
           if (message.flag?.flagStatus === 'flagged') {
-            tasks.push({ key: `outlook:${id(message.id)}`, source, title: message.subject || '(No subject)',
+            mapped.push({ key: `outlook:${id(message.id)}`, source, title: message.subject || '(No subject)',
               due: due(message.flag.dueDateTime), sourceUrl: link(message.webLink), linkLabel: 'Open email' });
           }
-        });
-      };
-      try {
-        complete = await pages<Message>(client, '/me/messages', 'id,subject,flag,webLink', budget, receive, true, "flag/flagStatus eq 'flagged'");
-      } catch (error) {
-        if (widgetDataErrorStatus(error) !== 400 || tasks.length) { throw error; }
-        // Some tenants reject the flag filter; never substitute a recent Inbox query.
-        complete = await pages<Message>(client, '/me/messages', 'id,subject,flag,webLink', budget, receive, true);
+        }
+      });
+      visited.add(current.path);
+      pending.shift();
+      if (response['@odata.nextLink']) {
+        pending.unshift({ path: response['@odata.nextLink'], listId: current.listId });
       }
+      const available = TASK_BATCH_SIZE - tasks.length;
+      tasks.push(...mapped.slice(0, available));
+      buffered.push(...mapped.slice(available));
+      taskRecords += response.value.length;
+    }
+    if (pending.length && taskRecords < TASK_BATCH_SIZE && budget.requests >= TASK_REQUEST_LIMIT) {
+      warning = `Results are incomplete (limit: ${TASK_REQUEST_LIMIT} requests per batch).`;
     }
   } catch (error) {
-    if (isWidgetDataAuthorizationError(error) || !tasks.length) { throw error; }
+    if (isWidgetDataAuthorizationError(error) || (!tasks.length && !continuation)) { throw error; }
     complete = false;
     warning = error instanceof Error ? error.message : 'This source could not finish loading.';
   }
   const unique = new Map<string, AggregatedTask>();
   tasks.forEach((task) => unique.set(task.key, task));
-  return { tasks: Array.from(unique.values()), complete,
-    warning: complete ? undefined : warning ?? `Results are incomplete (limit: ${TASK_REQUEST_LIMIT} requests / ${TASK_RECORD_LIMIT} records).` };
+  const next = pending.length || buffered.length
+    ? { pending, buffered, visited: Array.from(visited), discoveryComplete } : undefined;
+  return { tasks: Array.from(unique.values()), complete: complete && !next,
+    continuation: next,
+    warning: warning ?? (!complete ? `Results are incomplete (limit: ${TASK_REQUEST_LIMIT} requests / ${TASK_RECORD_LIMIT} records).` : undefined) };
 }
 
 export function reconcileTaskSource(previous: AggregatedTask[], next: TaskSourceData): AggregatedTask[] {

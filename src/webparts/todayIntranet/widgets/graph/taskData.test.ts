@@ -1,6 +1,6 @@
 import type { MSGraphClientV3 } from '@microsoft/sp-http';
 import {
-  advanceTaskHistory, AggregatedTask, emptyTaskHistory, loadTaskSource, reconcileTaskSource, TASK_RECORD_LIMIT,
+  advanceTaskHistory, AggregatedTask, emptyTaskHistory, loadTaskSource, reconcileTaskSource, TASK_BATCH_SIZE,
   TASK_REQUEST_LIMIT, taskDueDay, taskSources
 } from './taskData';
 
@@ -122,7 +122,7 @@ describe('read-only task sources', () => {
     expect(header).toHaveBeenCalledWith('Prefer', 'IdType="ImmutableId"');
     expect(filter).toHaveBeenCalledWith("flag/flagStatus eq 'flagged'");
     expect(select).toHaveBeenCalledWith('id,subject,flag,webLink');
-    expect(top).toHaveBeenCalledWith(100);
+    expect(top).toHaveBeenCalledWith(50);
     expect(api).toHaveBeenCalledWith('/me/messages');
   });
 
@@ -152,10 +152,70 @@ describe('read-only task sources', () => {
   });
 
   it('bounds records even when a server page exceeds the requested page size', async () => {
-    get.mockResolvedValueOnce({ value: Array.from({ length: TASK_RECORD_LIMIT + 1 }, (_, index) => ({ id: String(index), percentComplete: 0 })) });
+    get.mockResolvedValueOnce({ value: Array.from({ length: TASK_BATCH_SIZE + 1 }, (_, index) => ({ id: String(index), percentComplete: 0 })) });
     const result = await loadTaskSource(client, 'planner');
-    expect(result.tasks).toHaveLength(TASK_RECORD_LIMIT);
+    expect(result.tasks).toHaveLength(TASK_BATCH_SIZE);
     expect(result.complete).toBe(false);
+    const rest = await loadTaskSource(client, 'planner', result.continuation);
+    expect(rest).toMatchObject({ complete: true, tasks: [{ key: 'planner:50' }] });
+    expect(get).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops at 50 To Do records and resumes the exact nextLink only on demand', async () => {
+    const nextLink = 'https://graph.microsoft.com/v1.0/me/todo/lists/list/tasks?$skip=50';
+    get.mockResolvedValueOnce({ value: [{ id: 'list' }, { id: 'later' }] })
+      .mockResolvedValueOnce({ value: Array.from({ length: 50 }, (_, index) => ({ id: String(index) })), '@odata.nextLink': nextLink })
+      .mockResolvedValueOnce({ value: [{ id: 'last' }] })
+      .mockResolvedValueOnce({ value: [{ id: 'other' }] });
+    const first = await loadTaskSource(client, 'todo');
+    expect(first.tasks).toHaveLength(50);
+    expect(first.complete).toBe(false);
+    expect(first.warning).toBeUndefined();
+    expect(get).toHaveBeenCalledTimes(2);
+    expect(api).not.toHaveBeenCalledWith(nextLink);
+    const second = await loadTaskSource(client, 'todo', first.continuation);
+    expect(second.tasks.map((task) => task.key)).toEqual(['todo:list:last', 'todo:later:other']);
+    expect(second.complete).toBe(true);
+    expect(api.mock.calls.map(([path]) => path)).toEqual([
+      '/me/todo/lists', '/me/todo/lists/list/tasks', nextLink, '/me/todo/lists/later/tasks'
+    ]);
+    expect(top).not.toHaveBeenCalled();
+  });
+
+  it('does not chase a nextLink after a batch containing 50 completed tasks', async () => {
+    get.mockResolvedValueOnce({ value: [{ id: 'list' }] })
+      .mockResolvedValueOnce({ value: Array.from({ length: 50 }, (_, index) => ({ id: String(index), status: 'completed' })),
+        '@odata.nextLink': '/later' });
+    const result = await loadTaskSource(client, 'todo');
+    expect(result.tasks).toEqual([]);
+    expect(result.continuation).toBeDefined();
+    expect(get).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps a failed continuation available for retry', async () => {
+    get.mockResolvedValueOnce({ value: Array.from({ length: 50 }, (_, index) => ({ id: String(index), percentComplete: 0 })),
+      '@odata.nextLink': '/next' })
+      .mockRejectedValueOnce(new Error('Throttled'))
+      .mockResolvedValueOnce({ value: [{ id: 'last', percentComplete: 0 }] });
+    const first = await loadTaskSource(client, 'planner');
+    const failed = await loadTaskSource(client, 'planner', first.continuation);
+    expect(failed.warning).toBe('Throttled');
+    const retry = await loadTaskSource(client, 'planner', failed.continuation);
+    expect(retry).toMatchObject({ complete: true, tasks: [{ key: 'planner:last' }] });
+  });
+
+  it('does not declare a resumed source complete when list discovery hit its safety limit', async () => {
+    let list = 0;
+    get.mockImplementation(async () => ({
+      value: [{ id: `list-${list}` }], '@odata.nextLink': `/lists-${++list}`
+    }));
+    const first = await loadTaskSource(client, 'todo');
+    expect(first.complete).toBe(false);
+    expect(first.continuation).toBeDefined();
+    get.mockResolvedValue({ value: [] });
+    const resumed = await loadTaskSource(client, 'todo', first.continuation);
+    expect(resumed.complete).toBe(false);
+    expect(resumed.warning).toContain('incomplete');
   });
 
   it('reports a mid-pagination failure without losing the successful page', async () => {

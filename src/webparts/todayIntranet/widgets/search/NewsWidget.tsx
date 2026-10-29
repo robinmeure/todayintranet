@@ -3,8 +3,10 @@ import { IWidgetContext, IWidgetLink } from '../IWidget';
 import {
   IWidgetListItem,
   NumberSetting,
-  paginationSize,
+  booleanSetting,
+  collectionPaging,
   SettingsSurface,
+  ToggleSetting,
   WidgetItems,
   WidgetItemsView,
   WidgetView,
@@ -12,7 +14,7 @@ import {
   viewSetting
 } from '../content';
 import { useSearchData } from './useSearchData';
-import { ISearchRow, formatSearchDate, plainSummary } from './SearchService';
+import { ISearchRow, SEARCH_ROW_LIMIT, formatSearchDate, plainSummary } from './SearchService';
 import { SearchQuerySetting } from './SearchQuerySetting';
 import { SearchScope, buildQuery, scopeSetting } from './searchQuery';
 
@@ -56,6 +58,7 @@ export const NewsWidget: React.FunctionComponent<{ context: IWidgetContext }> = 
   const scope = scopeSetting(context, DEFAULT_SCOPE);
   const maxItems = numberSetting(context, 'maxItems', DEFAULT_MAX_ITEMS, MAX_ITEMS_BOUNDS);
   const view = viewSetting(context, NEWS_DEFAULT_VIEW);
+  const paging = collectionPaging(context, maxItems, SEARCH_ROW_LIMIT);
   const terms = typeof context.settings.terms === 'string' ? context.settings.terms : '';
   const locale = context.spContext.pageContext.cultureInfo.currentUICultureName || undefined;
 
@@ -63,7 +66,7 @@ export const NewsWidget: React.FunctionComponent<{ context: IWidgetContext }> = 
 
   const state = useSearchData(
     context,
-    { queryText, selectProperties: SELECT_PROPERTIES, rowLimit: maxItems, sortList: SORT_LIST }
+    { queryText, selectProperties: SELECT_PROPERTIES, rowLimit: paging.fetchLimit, sortList: SORT_LIST }
   );
 
   return (
@@ -75,7 +78,7 @@ export const NewsWidget: React.FunctionComponent<{ context: IWidgetContext }> = 
     >
       {(results) => (
         <WidgetItems
-          pageSize={paginationSize(context)}
+          pageSize={paging.pageSize}
           view={view}
           ariaLabel="News"
           items={results.rows.map((row, index) => toItem(row, index, locale, scope !== 'site'))}
@@ -100,9 +103,10 @@ export const NewsWidgetSettings: React.FunctionComponent<{ context: IWidgetConte
     <NumberSetting
       context={context}
       settingKey="maxItems"
-      label="Posts to show"
+      label={booleanSetting(context, 'paginationEnabled', true) ? 'Posts per page' : 'Posts to show'}
       fallback={DEFAULT_MAX_ITEMS}
       {...MAX_ITEMS_BOUNDS}
     />
+    <ToggleSetting context={context} settingKey="paginationEnabled" label="Use pagination" fallback={true} />
   </SettingsSurface>
 );

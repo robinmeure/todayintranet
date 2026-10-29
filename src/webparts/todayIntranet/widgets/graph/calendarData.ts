@@ -57,22 +57,35 @@ interface ICalendarPage {
   '@odata.nextLink'?: string;
 }
 
-export async function loadCalendarEvents(client: MSGraphClientV3, start: string, end: string): Promise<Event[]> {
+/**
+ * With a `limit`, paging stops once that many events that are still relevant (not yet ended,
+ * unless the range is in the past) have been collected, instead of reading the whole range.
+ */
+export async function loadCalendarEvents(client: MSGraphClientV3, start: string, end: string,
+  limit?: number, now: Date = new Date()): Promise<Event[]> {
   const events: Event[] = [];
   const visited = new Set<string>();
+  const isHistory = limit !== undefined && calendarDateKey(new Date(start)) < calendarDateKey(now);
+  const relevant = (event: Event): boolean => {
+    const finish = calendarEventTime(event.end);
+    return isHistory || !finish || finish > now;
+  };
+  let usable = 0;
   let next: string | undefined;
   do {
     let request = client.api(next ?? '/me/calendarView').version('v1.0').header('Prefer', 'outlook.timezone="UTC"');
     if (!next) {
       request = request.query({ startDateTime: start, endDateTime: end })
         .select('id,subject,start,end,isAllDay,location,webLink,isCancelled,onlineMeeting,onlineMeetingUrl')
-        .orderby('start/dateTime').top(100);
+        .orderby('start/dateTime').top(limit === undefined ? 100 : Math.max(1, Math.min(100, limit)));
     }
     const page: ICalendarPage = await request.get();
     if (!page || !Array.isArray(page.value)) {
       throw new Error('Microsoft 365 returned an invalid calendar response.');
     }
-    events.push(...page.value.filter((event) => !event.isCancelled));
+    const kept = page.value.filter((event) => !event.isCancelled);
+    events.push(...kept);
+    usable += kept.filter(relevant).length;
     next = page['@odata.nextLink'];
     if (next) {
       if (visited.has(next)) {
@@ -80,7 +93,7 @@ export async function loadCalendarEvents(client: MSGraphClientV3, start: string,
       }
       visited.add(next);
     }
-  } while (next);
+  } while (next && (limit === undefined || usable < limit));
   return events;
 }
 

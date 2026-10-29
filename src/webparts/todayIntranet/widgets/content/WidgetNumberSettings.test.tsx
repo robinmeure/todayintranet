@@ -1,12 +1,13 @@
 jest.mock('./WidgetContent.module.scss', () => ({}), { virtual: true });
 jest.mock('../content', () => ({
   ...jest.requireActual<typeof import('./WidgetSettings')>('./WidgetSettings'),
+  ...jest.requireActual<typeof import('./WidgetPagination')>('./WidgetPagination'),
   WidgetView: () => null
 }));
 jest.mock('../graph/useGraphData', () => ({ useGraphData: jest.fn() }));
 jest.mock('../search/useSearchData', () => ({ useSearchData: jest.fn() }));
 jest.mock('../search/SearchQuerySetting', () => ({ SearchQuerySetting: () => null }));
-jest.mock('../search/SearchService', () => ({}));
+jest.mock('../search/SearchService', () => ({ SEARCH_ROW_LIMIT: 50 }));
 
 import * as React from 'react';
 import type { ISpinButtonProps } from '@fluentui/react/lib/SpinButton';
@@ -14,6 +15,7 @@ import type { MSGraphClientV3 } from '@microsoft/sp-http';
 import type { WebPartContext } from '@microsoft/sp-webpart-base';
 import { IWidgetContext } from '../IWidget';
 import { numberSetting, NumberSetting } from './WidgetSettings';
+import { PAGE_WINDOW } from './WidgetPagination';
 import { MailWidget } from '../graph/MailWidget';
 import { NewsWidget } from '../search/NewsWidget';
 import { SearchResultsWidget } from '../search/SearchResultsWidget';
@@ -132,13 +134,18 @@ describe('widget request numeric bounds', () => {
   };
 
   describe.each([
-    ['Mail', MailWidget, 6, 0]
-  ] as const)('%s Graph request', (_name, Widget, fallback, overfetch) => {
+    ['Mail', MailWidget, 6]
+  ] as const)('%s Graph request', (_name, Widget, fallback) => {
     it.each([1e200, -5, 3.8, undefined])('bounds a persisted count before calling Graph (%p)', async (maxItems) => {
       Widget({ context: contextFor({ maxItems }) });
       const graph = await request();
       const count = maxItems === undefined ? fallback : Math.max(1, Math.min(20, Math.floor(maxItems)));
-      expect(graph.top).toHaveBeenCalledWith(count + overfetch);
+      expect(graph.top).toHaveBeenCalledWith(count * PAGE_WINDOW);
+    });
+
+    it('requests only the configured count when pagination is off', async () => {
+      Widget({ context: contextFor({ maxItems: 5, paginationEnabled: false }) });
+      expect((await request()).top).toHaveBeenCalledWith(5);
     });
   });
 
@@ -149,7 +156,12 @@ describe('widget request numeric bounds', () => {
     it.each([1e200, -5, 3.8, undefined])('bounds a persisted count before building the search request (%p)', (maxItems) => {
       Widget({ context: contextFor({ maxItems, scope: 'everywhere', terms: 'example' }) });
       const count = maxItems === undefined ? fallback : Math.max(1, Math.min(20, Math.floor(maxItems)));
-      expect(jest.mocked(useSearchData).mock.calls[0][1].rowLimit).toBe(count);
+      expect(jest.mocked(useSearchData).mock.calls[0][1].rowLimit).toBe(Math.min(50, count * PAGE_WINDOW));
+    });
+
+    it('requests only the configured count when pagination is off', () => {
+      Widget({ context: contextFor({ maxItems: 5, paginationEnabled: false, scope: 'everywhere', terms: 'example' }) });
+      expect(jest.mocked(useSearchData).mock.calls[0][1].rowLimit).toBe(5);
     });
   });
 });

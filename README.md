@@ -41,6 +41,10 @@ Useful Heft actions (old gulp equivalents in brackets): `build` [build + bundle]
 `package-solution` [package-solution], `clean` [clean], `dev-deploy` (new — pushes built assets to a
 test CDN), `trust-dev-cert`, `untrust-dev-cert`. `--production` replaces the old `--ship`.
 
+For Microsoft 365 widget load testing, use the [Graph test-data seeder](docs/graph-test-data.md)
+to create 1,100+ Planner tasks, To Do tasks, and calendar events for a test user, with dry-run
+preview and manifest-based cleanup. It runs outside the dashboard and does not change SPFx permissions.
+
 The production package is written to `sharepoint/solution/todayintranet.sppkg`. Deploy it to the
 **tenant** app catalog. `skipFeatureDeployment` is on, so the web part is available on every site
 once the package is approved. Approve the Graph permission requests afterwards (see
@@ -104,13 +108,23 @@ entire current page without internal scrollbars. Text wraps instead of being cli
 The page itself scrolls vertically as needed. Content measurements are transient and never overwrite
 the saved desktop geometry or switch a preset to Custom; deliberate drag/resize gestures still save.
 
-Every collection widget offers **Use pagination** and a configurable **Items per page** in its
-settings (My links keeps its existing pagination enabled by default, under Advanced settings;
-Calendar defaults to five meetings per page and uses a 3–6 slider).
+Every collection widget offers **Use pagination**, on by default. Its configured count (messages, tasks,
+posts, results, files) becomes the **page size**. The `< 1 2 3 4 >` control appears only when more than
+one page of results exists. It sits 16px below the content, shows at most four page numbers in a window
+that follows the current page, and marks the selected page with bold white text on a dark circle. My links and Calendar keep their own page-size settings (Calendar defaults to
+five meetings per page and uses a 3–6 slider). A page size explicitly saved earlier as `itemsPerPage`
+with pagination enabled is still honoured.
 Paging works across list, compact, cards, gallery, agenda, links and Adaptive Card collection views.
-It pages the loaded results, not the entire remote mailbox or search index: existing item/file limits
-still control fetching. Tasks pagination covers all loaded tasks; with pagination off, its existing
-item limit still applies. Calendar displays all selected-range meetings when pagination is off.
+
+Remote queries are bounded to a window of `4 × page size` items (capped at 100 for Graph, 50 for SharePoint
+search) rather than the whole collection, and with pagination off only the configured count is requested:
+Mail uses `$top`, News and Search use `rowlimit`, and Calendar follows `nextLink` only until enough
+not-yet-ended meetings are collected. **Tasks** loads batches of at most 50 task records per source,
+advertising five additional pages while more results are available and loading them only when selected.
+Priority, drag order, due-date sorting and filtering apply to the tasks loaded so far.
+**Viva Engage** still reads
+up to 200 files because the drive listing is sorted locally. Calendar displays all selected-range meetings
+when pagination is off.
 Clock, Welcome and authored Adaptive Cards are single-content widgets,
 so they grow to fit rather than displaying meaningless page controls.
 
@@ -633,7 +647,16 @@ There are no task-completion checkboxes: **every Microsoft Graph operation is a 
 - Planner reads work assigned to the signed-in user. Synchronized Loop task-list work is shown
   once under Planner; there is no separately attributed Loop, Teams or Azure filter. To Do and
   Planner links open the app, not an invented task-specific destination. Outlook uses `webLink`.
-- Paging is capped at **12 requests / 1,000 records per source**. A rejected Outlook flag filter
+- Task reads stop after **50 records per source per batch**, including completed tasks.
+  Graph continuation links and remaining To Do lists are retained for on-demand loading.
+  An oversized server response is buffered in memory, exposing at most 50 tasks per batch without
+  discarding the remainder. With pagination enabled, five provisional pages are added beyond
+  the loaded pages while a continuation exists (reachable through the page window and Next);
+  selecting one loads enough batches to reach it.
+  When Graph has no more data, the page count is corrected and the selection is clamped.
+  With pagination off, only the initial batch is loaded and the configured display count is shown.
+  Ordering and due-only filtering apply to loaded tasks, not to the entire remote collection.
+  Paging is additionally capped at **12 requests per batch / 1,000 list-discovery records**. A rejected Outlook flag filter
   falls back to bounded mailbox-wide paging and client-side filtering. Hitting a cap or failing
   partway through produces a visible incomplete-results notice and retry action. A partial refresh
   retains previously loaded rows; only a complete successful source refresh confirms disappearance.

@@ -13,7 +13,7 @@ import type { WebPartContext } from '@microsoft/sp-webpart-base';
 import { IWidgetContext } from '../IWidget';
 import { WidgetItems } from './WidgetItems';
 import { WidgetItemsView } from './IWidgetContent';
-import { paginationSize, PaginationSettings } from './WidgetPagination';
+import { collectionPaging, PAGE_WINDOW, paginationSize, PaginationSettings } from './WidgetPagination';
 
 const items = Array.from({ length: 13 }, (_, index) => ({ key: String(index), title: `Item ${index + 1}` }));
 
@@ -37,6 +37,7 @@ describe('Shared widget pagination', () => {
       render(3, 13, view);
       expect(container.querySelector('nav')?.getAttribute('aria-label')).toBe('Example pages');
       expect(container.querySelector('[aria-current="page"]')?.textContent).toBe('1');
+      click('Example page 4');
       click('Example page 5');
       expect(container.querySelector('[aria-current="page"]')?.textContent).toBe('5');
       expect(container.querySelector<HTMLButtonElement>('[aria-label="Next example page"]')?.disabled).toBe(true);
@@ -57,8 +58,28 @@ describe('Shared widget pagination', () => {
     expect(container.querySelector('nav')).toBeNull();
   });
 
+  it('shows at most four page numbers in a window that follows the current page', () => {
+    const pageNumbers = (): string[] => Array.from(container.querySelectorAll('nav button[aria-label^="Example page "]'))
+      .map((element) => element.textContent ?? '');
+    render(1, 13);
+    expect(pageNumbers()).toEqual(['1', '2', '3', '4']);
+    expect(container.querySelector('nav [data-icon-name="More"]')).toBeNull();
+    click('Example page 4');
+    expect(pageNumbers()).toEqual(['3', '4', '5', '6']);
+    click('Example page 6');
+    click('Example page 7');
+    click('Next example page');
+    expect(pageNumbers()).toEqual(['7', '8', '9', '10']);
+    for (let index = 0; index < 5; index++) { click('Next example page'); }
+    expect(container.textContent).toContain('Page 13 of 13');
+    expect(pageNumbers()).toEqual(['10', '11', '12', '13']);
+    render(5, 13);
+    expect(pageNumbers()).toEqual(['1', '2', '3']);
+  });
+
   it('clamps a removed last page, resets page size changes, and handles empty results', () => {
     render(3);
+    click('Example page 4');
     click('Example page 5');
     render(3, 4);
     expect(container.textContent).toContain('Page 2 of 2');
@@ -83,5 +104,20 @@ describe('Shared widget pagination', () => {
     if (!toggle) { throw new Error('Missing pagination toggle'); }
     act(() => Simulate.click(toggle));
     expect(context.updateSettings).toHaveBeenCalledWith({ ...context.settings, paginationEnabled: false });
+  });
+
+  it('uses the display count as the page size and a bounded window of pages as the fetch limit', () => {
+    const base: IWidgetContext = {
+      instanceId: 'example', spContext: new (jest.fn<WebPartContext, []>())(), isEditing: false,
+      refreshToken: 0, settings: {}, updateSettings: jest.fn()
+    };
+    const withSettings = (settings: Record<string, unknown>): IWidgetContext => ({ ...base, settings });
+    expect(collectionPaging(base, 5)).toEqual({ pageSize: 5, fetchLimit: 5 * PAGE_WINDOW });
+    expect(collectionPaging(base, 40)).toEqual({ pageSize: 40, fetchLimit: 100 });
+    expect(collectionPaging(base, 40, 50)).toEqual({ pageSize: 40, fetchLimit: 50 });
+    expect(collectionPaging(withSettings({ paginationEnabled: false }), 5)).toEqual({ fetchLimit: 5 });
+    expect(collectionPaging(withSettings({ itemsPerPage: 9 }), 5).pageSize).toBe(5);
+    expect(collectionPaging(withSettings({ paginationEnabled: true, itemsPerPage: 9 }), 5))
+      .toEqual({ pageSize: 9, fetchLimit: 9 * PAGE_WINDOW });
   });
 });

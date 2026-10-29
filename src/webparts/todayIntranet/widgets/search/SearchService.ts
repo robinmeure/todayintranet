@@ -14,6 +14,9 @@ export interface ISearchResults {
   totalRows: number;
 }
 
+/** The most rows one search request may ask for. */
+export const SEARCH_ROW_LIMIT = 50;
+
 export interface ISearchRequest {
   queryText: string;
   selectProperties: string[];
@@ -51,7 +54,7 @@ function toQueryString(request: ISearchRequest): string {
   const parameters: string[] = [
     `querytext=${quoted(request.queryText)}`,
     `selectproperties=${quoted(request.selectProperties.join(','))}`,
-    `rowlimit=${Math.max(1, Math.min(50, request.rowLimit))}`,
+    `rowlimit=${Math.max(1, Math.min(SEARCH_ROW_LIMIT, request.rowLimit))}`,
     'trimduplicates=false',
     `clienttype=${quoted('ContentSearchRegular')}`
   ];
