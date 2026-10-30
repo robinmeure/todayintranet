@@ -93,7 +93,10 @@ export async function loadCalendarEvents(client: MSGraphClientV3, start: string,
       }
       visited.add(next);
     }
-  } while (next && (limit === undefined || usable < limit));
+    if (limit !== undefined && usable >= limit) {
+      break;
+    }
+  } while (next);
   return events;
 }
 
