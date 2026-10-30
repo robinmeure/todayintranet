@@ -14,6 +14,7 @@ import {
   viewSetting
 } from '../content';
 import { useSearchData } from './useSearchData';
+import { mockSearch } from '../mock/mockData';
 import { ISearchRow, SEARCH_ROW_LIMIT, formatSearchDate, plainSummary } from './SearchService';
 import { SearchQuerySetting } from './SearchQuerySetting';
 import { SearchScope, buildQuery, scopeSetting } from './searchQuery';
@@ -66,7 +67,8 @@ export const NewsWidget: React.FunctionComponent<{ context: IWidgetContext }> = 
 
   const state = useSearchData(
     context,
-    { queryText, selectProperties: SELECT_PROPERTIES, rowLimit: paging.fetchLimit, sortList: SORT_LIST }
+    { queryText, selectProperties: SELECT_PROPERTIES, rowLimit: paging.fetchLimit, sortList: SORT_LIST },
+    () => mockSearch('news', paging.fetchLimit)
   );
 
   return (

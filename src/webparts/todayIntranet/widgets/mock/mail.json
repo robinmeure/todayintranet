@@ -1,0 +1,11 @@
+[
+  { "id": "mock-mail-1", "subject": "Lorem ipsum dolor sit amet", "from": { "emailAddress": { "name": "Lorem Ipsum" } }, "isRead": false },
+  { "id": "mock-mail-2", "subject": "Consectetur adipiscing elit", "from": { "emailAddress": { "name": "Dolor Sit" } }, "isRead": true },
+  { "id": "mock-mail-3", "subject": "Sed do eiusmod tempor incididunt", "from": { "emailAddress": { "name": "Amet Elit" } }, "isRead": false },
+  { "id": "mock-mail-4", "subject": "Ut labore et dolore magna aliqua", "from": { "emailAddress": { "name": "Magna Aliqua" } }, "isRead": false },
+  { "id": "mock-mail-5", "subject": "Ut enim ad minim veniam", "from": { "emailAddress": { "name": "Minim Veniam" } }, "isRead": true },
+  { "id": "mock-mail-6", "subject": "Quis nostrud exercitation ullamco", "from": { "emailAddress": { "name": "Nostrud Lorem" } }, "isRead": false },
+  { "id": "mock-mail-7", "subject": "Duis aute irure dolor in reprehenderit", "from": { "emailAddress": { "name": "Duis Aute" } }, "isRead": false },
+  { "id": "mock-mail-8", "subject": "Excepteur sint occaecat cupidatat", "from": { "emailAddress": { "name": "Sint Ipsum" } }, "isRead": false },
+  { "id": "mock-mail-9", "subject": "Sunt in culpa qui officia deserunt", "from": { "emailAddress": { "name": "Culpa Dolor" } }, "isRead": false }
+]

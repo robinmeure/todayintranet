@@ -64,6 +64,7 @@ describe('SearchQuerySetting cached preview', () => {
   });
 
   beforeEach(() => {
+    context.useMockData = false;
     jest.useFakeTimers();
     jest.mocked(getSearchData).mockReset().mockResolvedValue({
       data: {
@@ -121,11 +122,25 @@ describe('SearchQuerySetting cached preview', () => {
     await act(async () => {
       Simulate.click(runAgain);
     });
+
     await act(async () => {
       jest.runOnlyPendingTimers();
     });
 
     expect(getSearchData).toHaveBeenCalledTimes(2);
     expect(jest.mocked(getSearchData).mock.calls[1][2]).toBe(true);
+  });
+
+  it('pauses previews in mock mode and resumes the real query when switched off', async () => {
+    context.useMockData = true;
+    await render();
+    expect(getSearchData).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('Query preview is paused');
+    expect(Array.from(container.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Run again'))?.disabled).toBe(true);
+    context.useMockData = false;
+    await render();
+    expect(getSearchData).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain('Employee handbook');
   });
 });

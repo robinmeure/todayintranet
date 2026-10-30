@@ -10,6 +10,7 @@ import {
   viewSetting
 } from '../content';
 import { DEFAULT_ITEMS_PER_PAGE, DEFAULT_LINKS_SETTING, ITEMS_PER_PAGE_BOUNDS, parseLinksSetting } from './linksSettings';
+import mockLinks from '../mock/myLinks.json';
 export { MyLinksWidgetSettings } from './MyLinksWidgetSettings';
 
 export { parseLinksSetting } from './linksSettings';
@@ -17,7 +18,8 @@ export { parseLinksSetting } from './linksSettings';
 export const MY_LINKS_DEFAULT_VIEW: WidgetItemsView = 'links';
 
 export const MyLinksWidget: React.FunctionComponent<{ context: IWidgetContext }> = ({ context }) => {
-  const parsed = parseLinksSetting(textSetting(context, 'links', DEFAULT_LINKS_SETTING));
+  const parsed = parseLinksSetting(context.useMockData ? JSON.stringify(mockLinks)
+    : textSetting(context, 'links', DEFAULT_LINKS_SETTING));
   const itemsPerPage = paginationSize(context, DEFAULT_ITEMS_PER_PAGE, true, ITEMS_PER_PAGE_BOUNDS);
   if (parsed.error) {
     return <WidgetErrorMessage error={{

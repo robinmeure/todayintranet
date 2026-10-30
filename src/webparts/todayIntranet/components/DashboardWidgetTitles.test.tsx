@@ -21,7 +21,7 @@ jest.mock('./WidgetFrame', () => ({
 
 import * as React from 'react';
 import * as ReactDom from 'react-dom';
-import { act } from 'react-dom/test-utils';
+import { act, Simulate } from 'react-dom/test-utils';
 import { initializeIcons } from '@fluentui/react/lib/Icons';
 import type { WebPartContext } from '@microsoft/sp-webpart-base';
 import { Dashboard } from './Dashboard';
@@ -123,6 +123,27 @@ describe('Dashboard widget title persistence', () => {
         initialLayout.widgets[1]
       ]
     });
+  });
+
+  it('lets viewers toggle mock content without changing the saved layout and starts live after reload', async () => {
+    expect(frame('clock-1').widgetContext.useMockData).toBe(false);
+    expect(frame('clock-1').isEditing).toBe(false);
+    const toggle = container.querySelector<HTMLButtonElement>('[role="switch"]');
+    if (!toggle) { throw new Error('Mock data toggle not found.'); }
+    act(() => { Simulate.click(toggle); });
+    act(() => { jest.runOnlyPendingTimers(); });
+    expect(frame('clock-1').widgetContext.useMockData).toBe(true);
+    expect(frame('clock-2').widgetContext.useMockData).toBe(true);
+    expect(frame('clock-1').widgetContext.settings).toEqual({ view: 'list' });
+    expect(container.textContent).toContain('Showing sample content');
+    expect(await loadSavedLayout()).toEqual(initialLayout);
+    act(() => { Simulate.click(toggle); });
+    expect(frame('clock-1').widgetContext.useMockData).toBe(false);
+    expect(container.textContent).not.toContain('Showing sample content');
+    act(() => { Simulate.click(toggle); });
+    act(() => { ReactDom.unmountComponentAtNode(container); });
+    await renderDashboard();
+    expect(frame('clock-1').widgetContext.useMockData).toBe(false);
   });
 
   it('retains titles after loading the saved layout again', async () => {

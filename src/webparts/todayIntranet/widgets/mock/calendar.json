@@ -1,0 +1,10 @@
+[
+  { "id": "mock-event-1", "subject": "Lorem ipsum dolor sit amet", "location": { "displayName": "Lorem room" }, "offsetMinutes": 0 },
+  { "id": "mock-event-2", "subject": "Consectetur adipiscing elit", "location": { "displayName": "Ipsum room" }, "offsetMinutes": 5 },
+  { "id": "mock-event-3", "subject": "Sed do eiusmod tempor", "location": { "displayName": "Dolor room" }, "offsetMinutes": 10 },
+  { "id": "mock-event-4", "subject": "Ut labore et dolore magna aliqua", "location": { "displayName": "Amet room" }, "offsetMinutes": 15 },
+  { "id": "mock-event-5", "subject": "Ut enim ad minim veniam", "location": { "displayName": "Elit room" }, "offsetMinutes": 20 },
+  { "id": "mock-event-6", "subject": "Quis nostrud exercitation", "location": { "displayName": "Magna room" }, "offsetMinutes": 25 },
+  { "id": "mock-event-7", "subject": "Duis aute irure dolor", "location": { "displayName": "Aliqua room" }, "offsetMinutes": 30 },
+  { "id": "mock-event-8", "subject": "Excepteur sint occaecat", "location": { "displayName": "Veniam room" }, "offsetMinutes": 35 }
+]

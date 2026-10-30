@@ -1,0 +1,13 @@
+{
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+  "type": "AdaptiveCard",
+  "version": "1.5",
+  "body": [
+    { "type": "TextBlock", "text": "Lorem ipsum dolor sit amet", "weight": "Bolder", "size": "Medium", "wrap": true },
+    { "type": "TextBlock", "text": "Consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.", "wrap": true },
+    { "type": "FactSet", "facts": [
+      { "title": "Lorem", "value": "Ipsum dolor sit amet" },
+      { "title": "Consectetur", "value": "Adipiscing elit" }
+    ] }
+  ]
+}

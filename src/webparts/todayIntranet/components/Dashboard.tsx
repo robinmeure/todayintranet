@@ -5,6 +5,7 @@ import { IReadonlyTheme } from '@microsoft/sp-component-base';
 import { PrimaryButton, DefaultButton } from '@fluentui/react/lib/Button';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
+import { Toggle } from '@fluentui/react/lib/Toggle';
 import { ThemeProvider, createTheme, IPartialTheme } from '@fluentui/react/lib/Theme';
 import styles from './Dashboard.module.scss';
 import { WidgetFrame, INudge } from './WidgetFrame';
@@ -136,6 +137,7 @@ const DashboardSession: React.FunctionComponent<IDashboardProps> = (props) => {
   const [widgets, setWidgets] = React.useState<IWidgetInstance[]>([]);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [isEditing, setIsEditing] = React.useState<boolean>(false);
+  const [useMockData, setUseMockData] = React.useState<boolean>(false);
   const [isCatalogueOpen, setIsCatalogueOpen] = React.useState<boolean>(false);
   const [isLayoutPanelOpen, setIsLayoutPanelOpen] = React.useState<boolean>(false);
   const [breakpoint, setBreakpoint] = React.useState<string>('lg');
@@ -531,6 +533,9 @@ const DashboardSession: React.FunctionComponent<IDashboardProps> = (props) => {
     <ThemeProvider theme={fluentTheme} applyTo="none" className={styles.dashboard}>
       <div className={styles.toolbar}>
         <h2 className={styles.heading}>{title}</h2>
+        <Toggle label="Mock data" inlineLabel checked={useMockData}
+          styles={{ root: { marginBottom: 0 } }}
+          onChange={(_, checked) => setUseMockData(!!checked)} />
         {editing && (
           <span className={styles.layoutBadge}>
             Layout: {activePreset ? activePreset.name : 'Custom'}
@@ -551,6 +556,13 @@ const DashboardSession: React.FunctionComponent<IDashboardProps> = (props) => {
           <DefaultButton iconProps={{ iconName: 'Edit' }} text="Edit dashboard" disabled={!canEdit} onClick={() => setIsEditing(true)} />
         )}
       </div>
+
+      {useMockData && (
+        <MessageBar messageBarType={MessageBarType.info}>
+          Showing sample content, not your Microsoft 365 data. Widget API calls and search previews are paused.
+          Mock tasks are read-only. Turn off Mock data to return to live content.
+        </MessageBar>
+      )}
 
       <LayoutStorageStatus
         status={storeStatus}
@@ -622,11 +634,13 @@ const DashboardSession: React.FunctionComponent<IDashboardProps> = (props) => {
               settings: widget.settings ?? {},
               spContext,
               isEditing: editing,
+              useMockData,
               updateSettings: (settings) => handleUpdateSettings(widget.id, settings)
             };
             return (
               <div key={widget.id}>
                 <WidgetFrame
+                  key={useMockData ? 'mock' : 'live'}
                   instance={widget}
                   widgetContext={widgetContext}
                   isEditing={editing}

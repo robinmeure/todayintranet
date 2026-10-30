@@ -1,0 +1,15 @@
+{
+  "community": { "id": "mock-community", "displayName": "Lorem ipsum community", "description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua." },
+  "memberCount": 128,
+  "filesUnavailable": false,
+  "files": [
+    { "id": "mock-file-1", "name": "Lorem ipsum.docx", "lastModifiedBy": "Lorem Ipsum" },
+    { "id": "mock-file-2", "name": "Dolor sit amet.pdf", "lastModifiedBy": "Dolor Sit" },
+    { "id": "mock-file-3", "name": "Consectetur adipiscing.pptx", "lastModifiedBy": "Amet Elit" },
+    { "id": "mock-file-4", "name": "Sed do eiusmod.xlsx", "lastModifiedBy": "Magna Aliqua" },
+    { "id": "mock-file-5", "name": "Tempor incididunt.docx", "lastModifiedBy": "Minim Veniam" },
+    { "id": "mock-file-6", "name": "Labore et dolore.pdf", "lastModifiedBy": "Nostrud Lorem" },
+    { "id": "mock-file-7", "name": "Magna aliqua.pptx", "lastModifiedBy": "Duis Aute" },
+    { "id": "mock-file-8", "name": "Ut enim ad minim.xlsx", "lastModifiedBy": "Sint Ipsum" }
+  ]
+}

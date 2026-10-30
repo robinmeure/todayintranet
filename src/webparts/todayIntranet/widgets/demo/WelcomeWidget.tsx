@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { IWidgetContext } from '../IWidget';
 import { SettingsSurface, TextSetting, WidgetProse, textSetting } from '../content';
+import mockWelcome from '../mock/welcome.json';
 
 const DEFAULT_GREETING: string = 'Good to see you';
 
@@ -11,6 +12,10 @@ const DEFAULT_GREETING: string = 'Good to see you';
 export const WelcomeWidget: React.FunctionComponent<{ context: IWidgetContext }> = ({ context }) => {
   const greeting = textSetting(context, 'greeting', DEFAULT_GREETING);
   const displayName = context.spContext.pageContext.user.displayName;
+
+  if (context.useMockData) {
+    return <WidgetProse heading={mockWelcome.heading}><p>{mockWelcome.body}</p></WidgetProse>;
+  }
 
   return (
     <WidgetProse heading={`${greeting}, ${displayName.split(' ')[0]}.`}>

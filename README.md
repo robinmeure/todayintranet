@@ -45,6 +45,22 @@ For Microsoft 365 widget load testing, use the [Graph test-data seeder](docs/gra
 to create 1,100+ Planner tasks, To Do tasks, and calendar events for a test user, with dry-run
 preview and manifest-based cleanup. It runs outside the dashboard and does not change SPFx permissions.
 
+For a preview without API data, turn on **Mock data** in the dashboard toolbar (available to
+all viewers, without entering edit mode). It forces bundled Lorem ipsum samples for every widget,
+including unconfigured tiles, and skips widget Graph/SharePoint requests, task-organization storage,
+and search-query previews. Layout loading and saving still use the normal layout store.
+Turn it off to restore live content, including normal empty and error states; it is not an
+automatic fallback for API failures. The toggle starts off on each dashboard load and is not saved
+or shared. It never replaces your widget settings or puts samples into the live data cache.
+
+Each widget has its own editable JSON fixture in
+[`widgets/mock`](src/webparts/todayIntranet/widgets/mock). The existing widget renderers, views,
+filters and pagination display these samples; task organization is read-only in mock mode.
+Calendar fixtures are dated inside the selected window, while mail, tasks, news and files use
+relative dates so samples remain useful over time. Collection fixtures contain 8–9 items
+(tasks: eight per source), so counts above the fixture size show only the available samples.
+Mock links point to `example.com`; other sample records do not link to real Microsoft 365 items.
+
 The production package is written to `sharepoint/solution/todayintranet.sppkg`. Deploy it to the
 **tenant** app catalog. `skipFeatureDeployment` is on, so the web part is available on every site
 once the package is approved. Approve the Graph permission requests afterwards (see

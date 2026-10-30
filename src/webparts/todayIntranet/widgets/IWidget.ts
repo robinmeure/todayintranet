@@ -14,6 +14,8 @@ export interface IWidgetContext {
   spContext: WebPartContext;
   /** True while the user is rearranging the dashboard. */
   isEditing: boolean;
+  /** Viewer-only sample content; never persisted into the layout or live data cache. */
+  useMockData?: boolean;
   /**
    * Bumped every time the user refreshes this tile. Data hooks list it among their
    * dependencies; widgets with nothing to re-read simply ignore it.

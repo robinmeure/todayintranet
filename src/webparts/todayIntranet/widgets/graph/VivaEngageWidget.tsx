@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Dropdown, IDropdownOption } from '@fluentui/react/lib/Dropdown';
 import { IWidgetContext, IWidgetLink } from '../IWidget';
 import { useGraphData } from './useGraphData';
+import { mockCommunity } from '../mock/mockData';
 import {
   booleanSetting,
   collectionPaging,
@@ -121,10 +122,11 @@ export const VivaEngageWidget: React.FunctionComponent<{ context: IWidgetContext
     SCOPE,
     (client) => loadCommunityCard(client, communityId, paging.fetchLimit),
     ['card', communityId, paging.fetchLimit],
-    !!communityId
+    !!communityId || !!context.useMockData,
+    () => mockCommunity(paging.fetchLimit)
   );
 
-  if (!communityId) {
+  if (!communityId && !context.useMockData) {
     return (
       <WidgetNotice
         title="No community chosen"
@@ -148,7 +150,8 @@ export const VivaEngageWidget: React.FunctionComponent<{ context: IWidgetContext
 
 export const VivaEngageWidgetSettings: React.FunctionComponent<{ context: IWidgetContext }> = ({ context }) => {
   const communityId = textSetting(context, COMMUNITY_KEY, '');
-  const communities = useGraphData<IEngageCommunity[]>(context, SCOPE, listCommunities, ['list']);
+  const communities = useGraphData<IEngageCommunity[]>(context, SCOPE, listCommunities, ['list'],
+    !context.useMockData);
 
   const options: IDropdownOption[] = (communities.data ?? []).map((community) => ({
     key: community.id,
@@ -176,7 +179,8 @@ export const VivaEngageWidgetSettings: React.FunctionComponent<{ context: IWidge
       ) : (
         <Dropdown
           label="Community"
-          placeholder={communities.status === 'loading' ? 'Loading communities…' : 'Choose a community'}
+          placeholder={context.useMockData ? 'Turn off Mock data to choose a community'
+            : communities.status === 'loading' ? 'Loading communities…' : 'Choose a community'}
           disabled={communities.status === 'loading'}
           options={options}
           selectedKey={communityId || null}

@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { IWidgetContext } from '../IWidget';
+import mockCard from '../mock/adaptiveCard.json';
 import {
   AdaptiveCardPayload,
   SettingsSurface,
@@ -40,7 +41,7 @@ const SAMPLE_JSON: string = JSON.stringify(SAMPLE_CARD, undefined, 2);
  * reference for any widget that wants to hand over a card instead of items.
  */
 export const AdaptiveCardWidget: React.FunctionComponent<{ context: IWidgetContext }> = ({ context }) => {
-  const json = textSetting(context, 'payload', SAMPLE_JSON);
+  const json = context.useMockData ? JSON.stringify(mockCard) : textSetting(context, 'payload', SAMPLE_JSON);
 
   const card = React.useMemo<AdaptiveCardPayload | undefined>(() => {
     try {

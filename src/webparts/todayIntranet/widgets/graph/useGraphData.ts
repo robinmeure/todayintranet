@@ -74,11 +74,12 @@ export function useGraphData<T>(
   scope: string,
   fetcher: (client: MSGraphClientV3) => Promise<T>,
   parameters: readonly GraphRequestParameter[],
-  enabled: boolean = true
+  enabled: boolean = true,
+  mockData?: () => T
 ): IGraphDataResult<T> {
   const spContext = context.spContext;
   const refreshToken = context.refreshToken;
-  const scopeKey = widgetDataCacheKey(context, `graph:${scope}`, []);
+  const scopeKey = widgetDataCacheKey(context, `graph:${scope}${context.useMockData ? ':mock' : ''}`, []);
   const requestKey = widgetDataCacheKey(context, `graph:${scope}`, parameters);
   const [result, setResult] = React.useState<IWidgetDataState<T> & { scopeKey: string }>({ status: 'loading', scopeKey });
   const [reloadToken, setReloadToken] = React.useState<number>(0);
@@ -89,10 +90,18 @@ export function useGraphData<T>(
   // an inline arrow function without re-querying on every render.
   const fetcherRef = React.useRef(fetcher);
   fetcherRef.current = fetcher;
+  const mockDataRef = React.useRef(mockData);
+  mockDataRef.current = mockData;
 
   React.useEffect(() => {
     if (!enabled) {
       setResult({ status: 'loading', scopeKey });
+      return;
+    }
+    if (context.useMockData) {
+      setResult(mockDataRef.current
+        ? { status: 'ready', data: mockDataRef.current(), scopeKey }
+        : { status: 'error', error: { message: 'Mock data is not available for this request.' }, scopeKey });
       return;
     }
     let cancelled = false;
@@ -142,7 +151,7 @@ export function useGraphData<T>(
     return () => {
       cancelled = true;
     };
-  }, [spContext, scope, scopeKey, requestKey, reloadToken, refreshToken, enabled]);
+  }, [spContext, scope, scopeKey, requestKey, reloadToken, refreshToken, enabled, context.useMockData]);
 
   const reload = React.useCallback(() => setReloadToken((token) => token + 1), []);
 

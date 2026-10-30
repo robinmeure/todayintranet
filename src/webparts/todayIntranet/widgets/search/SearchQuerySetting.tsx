@@ -90,6 +90,10 @@ export const SearchQuerySetting: React.FunctionComponent<ISearchQuerySettingProp
   // The preview follows whatever is on screen, debounced, so a query takes shape as
   // it is typed rather than only once it has been saved.
   React.useEffect(() => {
+    if (context.useMockData) {
+      setPreview({ status: 'idle' });
+      return;
+    }
     if (!isRunnable) {
       setPreview({ status: 'idle' });
       return undefined;
@@ -130,7 +134,7 @@ export const SearchQuerySetting: React.FunctionComponent<ISearchQuerySettingProp
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [spContext, query, isRunnable, runToken, selectKey, sortList]);
+  }, [spContext, query, isRunnable, runToken, selectKey, sortList, context.useMockData]);
 
   const scopeOptions: IDropdownOption[] = SEARCH_SCOPES.map((option) => ({
     key: option.id,
@@ -175,10 +179,12 @@ export const SearchQuerySetting: React.FunctionComponent<ISearchQuerySettingProp
           <DefaultButton
             iconProps={{ iconName: 'Refresh' }}
             text="Run again"
-            disabled={!isRunnable}
+            disabled={!isRunnable || context.useMockData}
             onClick={() => setRunToken((token) => token + 1)}
           />
         </div>
+
+        {context.useMockData && <p>Query preview is paused while Mock data is on.</p>}
 
         <code className={`${styles.query} ${isRunnable ? '' : styles.queryEmpty}`}>
           {isRunnable

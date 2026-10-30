@@ -15,6 +15,7 @@ import {
   defaultTaskMetadata, emptyTaskDocument, normalizeTaskTags, reorderTask, sortTasks, TASK_PRIORITIES, TaskMetadata
 } from './taskOrganization';
 import { useTaskOrganization } from './useTaskOrganization';
+import { mockTasks } from '../mock/mockData';
 import { widgetDataCacheKey } from '../data/WidgetDataCache';
 import { isWidgetDataAuthorizationError } from '../data/WidgetDataError';
 import { downloadJson } from '../../common/downloadJson';
@@ -32,7 +33,7 @@ interface TaskSourceResult extends IGraphDataResult<TaskSourceData> {
 
 function useTaskSource(context: IWidgetContext, source: TaskSource, enabled: boolean): TaskSourceResult {
   const initial = useGraphData(context, source === 'outlook' ? 'Mail.ReadBasic' : 'Tasks.Read',
-    (client) => loadTaskSource(client, source), ['task-source-v2', source], enabled);
+    (client) => loadTaskSource(client, source), ['task-source-v2', source], enabled, () => mockTasks(source));
   const [extra, setExtra] = React.useState<{
     initial?: TaskSourceData; data?: TaskSourceData; loading?: boolean; error?: unknown;
   }>({});

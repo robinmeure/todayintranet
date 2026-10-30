@@ -17,7 +17,8 @@ export interface ISearchDataResult extends IWidgetDataState<ISearchResults> {
  */
 export function useSearchData(
   context: IWidgetContext,
-  request: ISearchRequest
+  request: ISearchRequest,
+  mockData?: () => ISearchResults
 ): ISearchDataResult {
   const spContext = context.spContext;
   const refreshToken = context.refreshToken;
@@ -31,6 +32,9 @@ export function useSearchData(
   requestRef.current = request;
 
   React.useEffect(() => {
+    if (context.useMockData) {
+      return;
+    }
     let cancelled = false;
     const bypassCache =
       previousReloadToken.current !== reloadToken ||
@@ -71,9 +75,14 @@ export function useSearchData(
     return () => {
       cancelled = true;
     };
-  }, [spContext, requestKey, reloadToken, refreshToken]);
+  }, [spContext, requestKey, reloadToken, refreshToken, context.useMockData]);
 
   const reload = React.useCallback(() => setReloadToken((token) => token + 1), []);
 
+  if (context.useMockData) {
+    return mockData
+      ? { status: 'ready', data: mockData(), reload }
+      : { status: 'error', error: { message: 'Mock data is not available for this request.' }, reload };
+  }
   return { ...result, reload };
 }

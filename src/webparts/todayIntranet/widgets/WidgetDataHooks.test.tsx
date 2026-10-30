@@ -109,6 +109,60 @@ describe('widget data hook caching', () => {
     jest.restoreAllMocks();
   });
 
+  it('isolates Graph mocks from pending live requests, refreshes and the live cache', async () => {
+    const pending = deferred<string[]>();
+    const fetcher = jest.fn<Promise<string[]>, [MSGraphClientV3]>()
+      .mockReturnValueOnce(pending.promise).mockResolvedValue(['live mail']);
+    const Host: React.FunctionComponent<{ mock: boolean; refresh?: number }> = ({ mock, refresh = 0 }) => {
+      graphState = useGraphData({ ...contextFor('mock-mail', refresh), useMockData: mock },
+        'Mail.ReadBasic', fetcher, [], true, () => ['Lorem ipsum']);
+      return <span>{graphState.data?.join(',')}</span>;
+    };
+    await act(async () => { ReactDom.render(<Host mock={false} />, container); });
+    await act(async () => { ReactDom.render(<Host mock />, container); });
+    expect(graphState.data).toEqual(['Lorem ipsum']);
+    await act(async () => { pending.resolve(['original live mail']); });
+    expect(graphState.data).toEqual(['Lorem ipsum']);
+    await act(async () => { ReactDom.render(<Host mock refresh={1} />, container); });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    await act(async () => { ReactDom.render(<Host mock={false} refresh={1} />, container); });
+    expect(graphState.data).toEqual(['live mail']);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('never obtains a Graph client when mounted in mock mode, even on refresh', async () => {
+    const fetcher = jest.fn<Promise<string[]>, [MSGraphClientV3]>();
+    const Host: React.FunctionComponent<{ refresh: number }> = ({ refresh }) => {
+      graphState = useGraphData({ ...contextFor('mock-only', refresh), useMockData: true },
+        'Tasks.Read', fetcher, [], true, () => ['Lorem ipsum']);
+      return null;
+    };
+    await act(async () => { ReactDom.render(<Host refresh={0} />, container); });
+    await act(async () => { ReactDom.render(<Host refresh={1} />, container); });
+    expect(graphState.status).toBe('ready');
+    expect(graphState.data).toEqual(['Lorem ipsum']);
+    expect(getGraphClient).not.toHaveBeenCalled();
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('shows search fixtures without a configured query or API calls and restores live errors', async () => {
+    runSearchQuery.mockRejectedValue(new Error('Live search failed'));
+    const Host: React.FunctionComponent<{ mock: boolean; refresh?: number }> = ({ mock, refresh = 0 }) => {
+      searchState = useSearchData({ ...contextFor('mock-search', refresh), useMockData: mock },
+        { ...searchRequest, queryText: mock ? '' : searchRequest.queryText },
+        () => ({ rows: [{ Title: 'Lorem ipsum' }], totalRows: 1 }));
+      return null;
+    };
+    await act(async () => { ReactDom.render(<Host mock />, container); });
+    await act(async () => { ReactDom.render(<Host mock refresh={1} />, container); });
+    expect(searchState.data?.rows[0].Title).toBe('Lorem ipsum');
+    expect(runSearchQuery).not.toHaveBeenCalled();
+    await act(async () => { ReactDom.render(<Host mock={false} refresh={1} />, container); });
+    expect(searchState.status).toBe('error');
+    expect(searchState.data).toBeUndefined();
+    expect(runSearchQuery).toHaveBeenCalledTimes(1);
+  });
+
   it('never renders the preceding user data while a new Graph scope is loading', async () => {
     const pending = deferred<string[]>();
     const rendered: Array<string[] | undefined> = [];

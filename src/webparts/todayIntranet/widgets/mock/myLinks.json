@@ -1,0 +1,10 @@
+[
+  { "title": "Lorem ipsum", "url": "https://example.com/#lorem", "description": "Lorem ipsum dolor sit amet.", "iconName": "Globe" },
+  { "title": "Dolor sit amet", "url": "https://example.com/#dolor", "description": "Consectetur adipiscing elit.", "iconName": "Document" },
+  { "title": "Consectetur adipiscing", "url": "https://example.com/#consectetur", "description": "Sed do eiusmod tempor incididunt.", "iconName": "People" },
+  { "title": "Sed do eiusmod", "url": "https://example.com/#eiusmod", "description": "Ut labore et dolore magna aliqua.", "iconName": "Calendar" },
+  { "title": "Tempor incididunt", "url": "https://example.com/#tempor", "description": "Ut enim ad minim veniam.", "iconName": "Mail" },
+  { "title": "Labore et dolore", "url": "https://example.com/#labore", "description": "Quis nostrud exercitation ullamco.", "iconName": "Folder" },
+  { "title": "Magna aliqua", "url": "https://example.com/#magna", "description": "Duis aute irure dolor.", "iconName": "Search" },
+  { "title": "Ut enim ad minim", "url": "https://example.com/#veniam", "description": "Excepteur sint occaecat.", "iconName": "Link" }
+]

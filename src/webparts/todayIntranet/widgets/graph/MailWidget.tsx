@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Message } from '@microsoft/microsoft-graph-types';
 import { IWidgetContext, IWidgetLink } from '../IWidget';
 import { useGraphData } from './useGraphData';
+import { mockMail } from '../mock/mockData';
 import {
   IWidgetListItem,
   NumberSetting,
@@ -79,7 +80,9 @@ export const MailWidget: React.FunctionComponent<{ context: IWidgetContext }> = 
       const response = await request.get();
       return (response.value ?? []) as Message[];
     },
-    [paging.fetchLimit, unreadOnly]
+    [paging.fetchLimit, unreadOnly],
+    true,
+    () => mockMail(paging.fetchLimit, unreadOnly)
   );
 
   return (

@@ -1,3 +1,5 @@
+/* eslint-disable @rushstack/pair-react-dom-render-unmount -- Each test unmounts its container in afterEach. */
+
 jest.mock('@microsoft/sp-http', () => ({ SPHttpClient: { configurations: { v1: {} } } }));
 jest.mock('@microsoft/sp-page-context', () => ({ SPPermission: {} }));
 
@@ -33,6 +35,25 @@ describe('shared Tasks organization subscription', () => {
   afterEach(() => {
     act(() => { ReactDom.unmountComponentAtNode(container); });
     container.remove(); localStorage.clear(); jest.restoreAllMocks();
+  });
+  it('does not open task storage in mock mode, including on refresh or focus', async () => {
+    const context = contexts[0];
+    context.useMockData = true;
+    await act(async () => { ReactDom.render(<Host index={0} />, container); });
+    context.refreshToken++;
+    await act(async () => {
+      ReactDom.render(<Host index={0} />, container);
+      window.dispatchEvent(new Event('focus'));
+    });
+    expect(SharePointDocumentClient.prototype.initialize).not.toHaveBeenCalled();
+    expect(SharePointDocumentClient.prototype.read).not.toHaveBeenCalled();
+    expect(values[0].store).toBeUndefined();
+    expect(values[0].state.canEdit).toBe(false);
+    expect(localStorage.length).toBe(0);
+    context.useMockData = false;
+    await act(async () => { ReactDom.render(<Host index={0} />, container); });
+    expect(SharePointDocumentClient.prototype.initialize).toHaveBeenCalledTimes(1);
+    expect(values[0].state.canEdit).toBe(true);
   });
   it('shares one store and updates duplicate tiles immediately without needing Done', async () => {
     await act(async () => { ReactDom.render(<><Host index={0} /><Host index={1} /></>, container); });

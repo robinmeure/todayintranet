@@ -5,6 +5,7 @@ import { Slider } from '@fluentui/react/lib/Slider';
 import { ChoiceGroup } from '@fluentui/react/lib/ChoiceGroup';
 import { IWidgetContext, IWidgetLink } from '../IWidget';
 import { useGraphData } from './useGraphData';
+import { mockCalendar } from '../mock/mockData';
 import {
   NumberSetting, SettingsSurface, ToggleSetting, WidgetDateToolbar, WidgetItems, WidgetItemsView, WidgetView,
   booleanSetting, numberSetting, viewSetting, PAGE_WINDOW
@@ -75,7 +76,9 @@ const CalendarSchedule: React.FunctionComponent<ICalendarScheduleProps> = ({
     context,
     'Calendars.ReadBasic',
     async (client) => ({ start, end, events: await loadCalendarEvents(client, start, end, limit) }),
-    [start, end, limit]
+    [start, end, limit],
+    true,
+    () => ({ start, end, events: mockCalendar(start, end, limit) })
   );
   const { reload } = state;
   React.useEffect(() => {
